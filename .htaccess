@@ -1,0 +1,20 @@
+RewriteEngine On
+RewriteBase /
+
+<IfModule mod_headers.c>
+  <FilesMatch "^(app-ads|ads)\.txt$">
+    Header set Content-Type "text/plain; charset=utf-8"
+  </FilesMatch>
+</IfModule>
+<FilesMatch "^(app-ads|ads)\.txt$">
+  ForceType text/plain
+</FilesMatch>
+RewriteRule ^app-ads\.txt$ - [L]
+RewriteRule ^ads\.txt$ - [L]
+
+RewriteRule ^privacy/?$ /privacy/index.html [L]
+RewriteRule ^terms/?$ /terms/index.html [L]
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
