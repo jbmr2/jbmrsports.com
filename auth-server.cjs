@@ -14,8 +14,8 @@ try {
   } catch {
     throw new Error("Firebase service account must contain the complete valid JSON document");
   }
-  if (credentials.project_id !== "cloud-storage-eaca9") {
-    throw new Error("Use the cloud-storage-eaca9 service account for the app login");
+  if (credentials.project_id !== "jbmrsports-cricket-live") {
+    throw new Error("Use the jbmrsports-cricket-live service account for the app login");
   }
   if (!process.env.TWOFACTOR_API_KEY) throw new Error("TWOFACTOR_API_KEY is required");
   try {

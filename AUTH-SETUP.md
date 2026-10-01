@@ -9,7 +9,7 @@ Hostinger Entry File: `server.js`. This loads the Express server in `auth-server
 Set these environment variables in Hostinger (do not place credentials in website files):
 
 - `TWOFACTOR_API_KEY`: your existing 2Factor account API key.
-- `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase Admin service-account JSON from project cloud-storage-eaca9. Alternatively set FIREBASE_SERVICE_ACCOUNT_BASE64.
+- `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase Admin service-account JSON from project jbmrsports-cricket-live. Alternatively set FIREBASE_SERVICE_ACCOUNT_BASE64.
 - `PORT`: use the port supplied by Hostinger.
 
 Open `/health` on the deployed URL. The response must be JSON with service jbmr-auth. POST routes are `/sendOtp`, `/verifyOtp`, and `/verifyPinLogin`.
@@ -18,4 +18,4 @@ The server sends OTP through 2Factor AUTOGEN/OTP1, binds the session to the phon
 
 The iOS app is configured with JBMRAuthAPIBaseURL=https://jbmrsports.com. After deployment, /health must return JSON before trying OTP. Real SMS testing requires a chosen recipient.
 
-The login Firebase project is separate from the scoring archive project. Scoring data in criccricket does not change the login project.
+Login and scoring now use jbmrsports-cricket-live. User and PIN records are stored in the named criccricket Firestore database. Old cloud-storage-eaca9 users and PINs are not migrated; verify OTP and create a PIN again.
