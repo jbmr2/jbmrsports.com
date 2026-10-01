@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "node auth-server.cjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
@@ -11,6 +12,9 @@
     "deploy": "npm run build && firebase deploy --only hosting"
   },
   "dependencies": {
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.6.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3"
