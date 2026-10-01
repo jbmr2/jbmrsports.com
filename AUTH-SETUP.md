@@ -4,6 +4,8 @@ Deploy this combined website and auth package as a Node.js 20+ application on jb
 
 Build the website using `npm run build` before starting the server. Use `npm install` as the install command and `npm start` as the start command.
 
+Hostinger Entry File: `server.js`. This loads the Express server in `auth-server.cjs`.
+
 Set these environment variables in Hostinger (do not place credentials in website files):
 
 - `TWOFACTOR_API_KEY`: your existing 2Factor account API key.
