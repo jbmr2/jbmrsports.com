@@ -52,6 +52,7 @@ async function authenticated(req, res, next) {
     res.status(401).json({ ok: false, error: "Please sign in again" });
   }
 }
+require("./lib/admin-visibility.cjs").install(app);
 app.get("/api/scoring-archives", authenticated, async (_req, res) => {
   try {
     const db = require("firebase-admin/firestore").getFirestore("criccricket");
