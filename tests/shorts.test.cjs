@@ -11,6 +11,8 @@ assert.equal(ownsBall(tables,'7','101','+919876543211'),true);
 assert.equal(ownsBall(tables,'7','101','+919876543212'),false);
 assert.equal(ownsBall(tables,'8','101','+919876543210'),false);
 assert.equal(ownsBall({...tables,players:[{id:1,name:'Batter'}]},'7','101','+919876543210'),false);
+assert.equal(ownsBall({...tables,players:[{id:1,mobile_number:'9876543210',download_phone:''}]},'7','101','9876543210'),false);
+assert.equal(ownsBall({...tables,players:[{id:1,mobile_number:'9876543210',download_phone:'9876543212'}]},'7','101','9876543212'),true);
 const rules={tournaments:{9:{show:true}}};
 const batting=performancePackages([{tables}],'9876543210',rules);assert.equal(batting.length,1);assert.equal(batting[0].runs,6);assert.equal(batting[0].totalClips,4);assert.equal(batting[0].clips.length,2);
 const bowling=performancePackages([{tables}],'9876543211',rules);assert.equal(bowling[0].wickets,1);assert.equal(bowling[0].clips.length,1);
