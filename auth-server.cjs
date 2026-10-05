@@ -53,6 +53,7 @@ async function authenticated(req, res, next) {
   }
 }
 require("./lib/admin-visibility.cjs").install(app);
+require("./lib/shorts.cjs").install(app, authenticated);
 app.get("/api/scoring-archives", authenticated, async (_req, res) => {
   try {
     const db = require("firebase-admin/firestore").getFirestore("criccricket");
