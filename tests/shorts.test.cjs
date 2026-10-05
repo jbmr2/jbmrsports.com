@@ -19,3 +19,13 @@ const bowling=performancePackages([{tables}],'9876543211',rules);assert.equal(bo
 assert.equal(performancePackages([{tables}],'9876543210',{tournaments:{9:{show:false}}}).length,0);
 assert.equal(performancePackages([{tables},{tables}],'9876543210',rules).length,1);
 console.log('Passed: verified phone ownership, cross-match denial, missing-phone denial, batting coverage, wicket attribution, visibility and deduplication');
+
+const {applyPlayerDirectory}=require('../lib/shorts.cjs');
+const roster={players:[{id:62,player_uid:'p_correct'}]};
+applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_wrong',mobile:'919876543210'}]);
+assert.equal(roster.players[0].download_phone,undefined);
+applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_correct',mobile:'919876543210'}]);
+assert.equal(roster.players[0].download_phone,'9876543210');
+applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_correct',mobile:'919876543210'}],{'62':{phone:''}});
+assert.equal(roster.players[0].download_phone,'');
+console.log('Directory UID matching and override revocation passed');
