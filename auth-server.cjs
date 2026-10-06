@@ -56,17 +56,7 @@ require("./lib/admin-visibility.cjs").install(app);
 require("./lib/shorts.cjs").install(app, authenticated);
 app.get("/api/scoring-archives", authenticated, async (_req, res) => {
   try {
-    const db = require("firebase-admin/firestore").getFirestore("criccricket");
-    const docs = await db.collection("scoring_archives").doc("80c7442eb2ca4aeabfb6779128d91b8a").collection("matches").get();
-    const payloads = [];
-    for (const doc of docs.docs) {
-      const row = doc.data();
-      if (row.status !== "completed" || !row.revision) continue;
-      const chunks = await doc.ref.collection("revisions").doc(row.revision).collection("chunks").get();
-      const parts = chunks.docs.sort((a, b) => a.id.localeCompare(b.id)).map(x => x.get("json"));
-      if (parts.length !== Number(row.chunk_count) || parts.some(x => typeof x !== "string")) throw Error("Invalid archive");
-      payloads.push(JSON.parse(parts.join("")));
-    }
+    const payloads = await require("./lib/admin-visibility.cjs").archives();
     res.set("Cache-Control", "private, no-store").json({ ok: true, archives: payloads });
   } catch {
     res.status(502).json({ ok: false, error: "Match archives could not load" });
