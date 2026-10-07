@@ -40,3 +40,15 @@ assert.equal(special.find(p=>p.category==='sixes').clips[0].ballID,'105');
 assert.equal(special.filter(p=>p.role==='bowling').length,0);
 assert.equal(performancePackages([{tables:bigTables}],'9876543211',rules)[0].category,'wickets');
 console.log('Separate innings, fours, sixes and credited-wicket packages passed');
+
+const {selectClip}=require('../lib/shorts.cjs');
+const oldMirror={...tables,players:[{id:1,name:'Batter'},{id:2,name:'Bowler'}]};
+const selected=selectClip([{tables:oldMirror},{tables}],'rtdb-ball-7-101',rules,'9876543210');
+assert.equal(selected.tables,tables);
+assert.equal(ownsBall(selected.tables,'7','101','9876543210'),true);
+assert.equal(selectClip([{tables:oldMirror},{tables}],'rtdb-ball-7-101',rules).tables,oldMirror);
+const stranger=selectClip([{tables:oldMirror},{tables}],'rtdb-ball-7-101',rules,'9876543212');
+assert.equal(ownsBall(stranger.tables,'7','101','9876543212'),false);
+assert.equal(selectClip([{tables}],'rtdb-ball-8-101',rules,'9876543210'),null);
+assert.equal(selectClip([{tables}],'rtdb-ball-7-101',{tournaments:{9:{show:false}}},'9876543210'),null);
+console.log('Mirrored clip selection preserves verified ownership and denies other users/hidden matches');
