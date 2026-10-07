@@ -1,6 +1,6 @@
 
 const APP_STORE_URL = 'https://apps.apple.com/in/app/jbmr-sports/id6808138064'
-const STORE_MAIL = 'mailto:support@jbmrsports.com?subject=JBMR%20Sports%20app'
+const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=in.jbmrsports.ott'
 
 const FEATURES = [
   {
@@ -176,7 +176,7 @@ export function HomePage() {
                   App Store
                 </span>
               </a>
-              <a className="web-store-btn" href={STORE_MAIL}>
+              <a className="web-store-btn" href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
                 <img src="/figma-v2/icon-play-store.svg" alt="" width={20} height={20} />
                 <span>
                   <small>GET IT ON</small>
