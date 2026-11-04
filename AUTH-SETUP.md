@@ -11,10 +11,11 @@ Set these environment variables in Hostinger (do not place credentials in websit
 - `TWOFACTOR_API_KEY`: your existing 2Factor account API key.
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase Admin service-account JSON from project jbmrsports-cricket-live. Alternatively set FIREBASE_SERVICE_ACCOUNT_BASE64.
 - `PORT`: use the port supplied by Hostinger.
+- Optional App Review login: set `DEMO_LOGIN_ENABLED=true`, `DEMO_PHONE`, `DEMO_OTP`, and `DEMO_SESSION` as private environment variables. The bypass is disabled when these are absent.
 
-Open `/health` on the deployed URL. The response must be JSON with service jbmr-auth. POST routes are `/sendOtp`, `/verifyOtp`, and `/verifyPinLogin`.
+Open `/health` on the deployed URL. The response must be JSON with service jbmr-auth. Routes are `/sendOtp`, `/verifyOtp`, `/verifyPinLogin`, `/savePin`, and `/api/scoring-archives`.
 
-The server sends OTP through 2Factor AUTOGEN/OTP1, binds the session to the phone, and verifies the OTP before issuing a Firebase custom token. PIN records remain in Firebase. Later PIN login issues another Firebase custom token without sending SMS.
+The server sends OTP through 2Factor AUTOGEN/OTP1, binds the session to the phone, and verifies the OTP before issuing a Firebase custom token. PIN records and completed archives use the named `criccricket` Firestore database. PINs are stored using a salted scrypt hash; legacy PIN hashes upgrade on successful PIN login.
 
 The iOS app is configured with JBMRAuthAPIBaseURL=https://jbmrsports.com. After deployment, /health must return JSON before trying OTP. Real SMS testing requires a chosen recipient.
 
