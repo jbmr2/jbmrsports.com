@@ -58,7 +58,8 @@ app.get("/api/scoring-archives", authenticated, async (_req, res) => {
   try {
     const payloads = await require("./lib/admin-visibility.cjs").archives();
     res.set("Cache-Control", "private, no-store").json({ ok: true, archives: payloads });
-  } catch {
+  } catch (error) {
+    console.error("JBMR archive API failed", error.code ?? error.name, error.message);
     res.status(502).json({ ok: false, error: "Match archives could not load" });
   }
 });
