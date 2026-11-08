@@ -27,7 +27,7 @@ try {
   authConfigurationError = err.message;
   console.error("Login configuration:", authConfigurationError);
 }
-const { handleSendOtp, handleVerifyOtp, handleVerifyPinLogin } = require("./lib/otp-2factor.cjs");
+const { handleSendOtp, handleVerifyOtp, handleVerifyPinLogin, createPinHash } = require("./lib/otp-2factor.cjs");
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "8kb" }));
@@ -64,14 +64,20 @@ app.get("/api/scoring-archives", authenticated, async (_req, res) => {
   }
 });
 app.post("/savePin", authenticated, async (req, res) => {
-  const phone = String(req.user.phone_number || "").replace(/^\+91/, "");
-  const hash = String(req.body.pinHash || "");
-  if (!/^\d{10}$/.test(phone) || !/^[a-f0-9]{64}$/.test(hash)) return res.status(400).json({ ok: false, error: "Invalid PIN setup" });
+  const phone = String(req.user.phone_number || req.user.phone || "").replace(/^\+91/, "");
+  const pin = String(req.body.pin || "");
+  const legacyHash = String(req.body.pinHash || "");
+  if (!/^\d{10}$/.test(phone) || (!/^\d{4}$/.test(pin) && !/^[a-f0-9]{64}$/.test(legacyHash))) return res.status(400).json({ ok: false, error: "Invalid PIN setup" });
   try {
+    const hash = /^\d{4}$/.test(pin) ? createPinHash(pin) : legacyHash;
     const db = require("firebase-admin/firestore").getFirestore("criccricket");
     const batch = db.batch();
     batch.set(db.collection("phonePins").doc(phone), { uid: req.user.uid, pinHash: hash, updatedAt: new Date() }, { merge: true });
-    batch.set(db.collection("users").doc(req.user.uid), { phoneNational: phone, phoneE164: req.user.phone_number, pinHash: hash, pinUpdatedAt: new Date() }, { merge: true });
+    const userRef = db.collection("users").doc(req.user.uid);
+    if ((await userRef.get()).exists) {
+      const removeLegacyVerifier = require("firebase-admin/firestore").FieldValue.delete();
+      batch.set(userRef, { pinHash: removeLegacyVerifier, pinUpdatedAt: removeLegacyVerifier }, { merge: true });
+    }
     await batch.commit();
     res.json({ ok: true });
   } catch { res.status(502).json({ ok: false, error: "PIN could not be saved" }); }
