@@ -25,7 +25,7 @@ const roster={players:[{id:62,player_uid:'p_correct'}]};
 applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_wrong',mobile:'919876543210'}]);
 assert.equal(roster.players[0].download_phone,undefined);
 applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_correct',mobile:'919876543210'}]);
-assert.equal(roster.players[0].download_phone,'9876543210');
+assert.equal(roster.players[0].directory_phone,'9876543210');
 applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_correct',mobile:'919876543210'}],{'62':{phone:''}});
 assert.equal(roster.players[0].download_phone,'');
 console.log('Directory UID matching and override revocation passed');
