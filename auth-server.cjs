@@ -1,6 +1,7 @@
 const path = require("node:path");
 const express = require("express");
 const { initializeApp, cert } = require("firebase-admin/app");
+const { getDatabaseWithUrl } = require("firebase-admin/database");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -42,6 +43,49 @@ app.use(["/sendOtp", "/verifyOtp", "/verifyPinLogin"], (_req, res, next) => {
 app.post("/sendOtp", handleSendOtp);
 app.post("/verifyOtp", handleVerifyOtp);
 app.post("/verifyPinLogin", handleVerifyPinLogin);
+app.get("/api/public/live-feed", authenticated, async (_req, res) => {
+  try {
+    const db = getDatabaseWithUrl("https://jbmrsports-cricket-live-default-rtdb.asia-southeast1.firebasedatabase.app");
+    const [feed, scorer80, scorer99, scorer6] = await Promise.all([
+      db.ref("tournament_feed").get(),
+      db.ref("scorers_public/80c7442eb2ca4aeabfb6779128d91b8a").get(),
+      db.ref("scorers_public/994bd24b405943c790d9b8b32d3e13e2").get(),
+      db.ref("scorers_public/6fca9fc7d4974919a43b149d32717119").get(),
+    ]);
+    const source = feed.val() || {};
+    const tournaments = {};
+    for (const installation of Object.values(source)) {
+      for (const [key, raw] of Object.entries(installation?.tournaments || {})) {
+        const t = raw || {};
+        const tid = String(t.tournament_uid || t.tournament_id || key);
+        const matches = {};
+        for (const [matchKey, match] of Object.entries(t.matches || {})) {
+          const m = match || {};
+          matches[String(m.match_uid || m.match_id || matchKey)] = {
+            matchId: String(m.match_uid || m.match_id || matchKey), status: m.status || "scheduled",
+            title: m.title || "Match", scheduledAt: m.scheduled_at || null, venue: m.venue || t.venue || null,
+            result: m.result || null, highlightUrl: m.highlight_url || null, liveUrl: m.youtube_url || null,
+            team1: m.team1 || m.team_a || { name: "TBD" }, team2: m.team2 || m.team_b || { name: "TBD" },
+          };
+        }
+        tournaments[tid] = { tournamentId: String(t.tournament_id || tid), name: t.name || "Tournament",
+          logoUrl: t.logo_url || null, venue: t.venue || null, matches };
+      }
+    }
+    const safeScorer = (snapshot) => {
+      const tables = snapshot?.tables || {};
+      const matches = Object.values(tables.matches || {}).map((m) => ({
+        id: m.id, status: m.status, title: m.title, scheduledAt: m.scheduled_at,
+        teamAId: m.team_a_id, teamBId: m.team_b_id, tournamentId: m.tournament_id,
+        innings: Object.values(tables.innings || {}).filter((i) => i.match_id === m.id).map((i) => ({ id: i.id, number: i.number, state: i.state, battingTeamId: i.batting_team_id })),
+      }));
+      return { matches };
+    };
+    res.set("Cache-Control", "no-store").json({ ok: true, tournaments, scorers: [safeScorer(scorer80.val()), safeScorer(scorer99.val()), safeScorer(scorer6.val())] });
+  } catch {
+    res.status(502).json({ ok: false, error: "Live feed temporarily unavailable" });
+  }
+});
 async function authenticated(req, res, next) {
   if (authConfigurationError) return res.status(503).json({ ok: false, error: "Login unavailable" });
   try {
