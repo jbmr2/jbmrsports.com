@@ -53,6 +53,12 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
       db.ref("scorers_public/6fca9fc7d4974919a43b149d32717119").get(),
     ]);
     const source = feed.val() || {};
+    const teamIndex = {};
+    for (const snapshot of [scorer80.val(), scorer99.val(), scorer6.val()]) {
+      for (const [id, team] of Object.entries(snapshot?.tables?.teams || {})) {
+        teamIndex[String(team?.id ?? id)] = { id: String(team?.id ?? id), name: team?.name || "Team", shortName: team?.short_name || team?.shortName || null, logoUrl: team?.logo_url || null };
+      }
+    }
     const tournaments = {};
     for (const installation of Object.values(source)) {
       for (const [key, raw] of Object.entries(installation?.tournaments || {})) {
@@ -65,7 +71,8 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
             matchId: String(m.match_uid || m.match_id || matchKey), status: m.status || "scheduled",
             title: m.title || "Match", scheduledAt: m.scheduled_at || null, venue: m.venue || t.venue || null,
             result: m.result || null, highlightUrl: m.highlight_url || null, liveUrl: m.youtube_url || null,
-            team1: m.team1 || m.team_a || { name: "TBD" }, team2: m.team2 || m.team_b || { name: "TBD" },
+            team1: m.team1 || m.team_a || teamIndex[String(m.team_a_id)] || { name: "TBD" },
+            team2: m.team2 || m.team_b || teamIndex[String(m.team_b_id)] || { name: "TBD" },
           };
         }
         tournaments[tid] = { tournamentId: String(t.tournament_id || tid), name: t.name || "Tournament",
