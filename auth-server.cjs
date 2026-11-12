@@ -65,16 +65,18 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
     discover(source);
     const dynamicScorers = await Promise.all([...scorerIDs].filter((id) => !["80c7442eb2ca4aeabfb6779128d91b8a", "994bd24b405943c790d9b8b32d3e13e2", "6fca9fc7d4974919a43b149d32717119"].includes(id)).map((id) => db.ref(`scorers_public/${id}`).get()));
     const scorerValues = [scorer80.val(), scorer99.val(), scorer6.val(), ...dynamicScorers.map((s) => s.val())];
+    const scorerList = [...scorerIDs];
     const teamIndex = {};
-    for (const snapshot of scorerValues) {
+    for (const [sourceIndex, snapshot] of scorerValues.entries()) {
       for (const [id, team] of Object.entries(snapshot?.tables?.teams || {})) {
-        teamIndex[String(team?.id ?? id)] = { id: String(team?.id ?? id), name: team?.name || "Team", shortName: team?.short_name || team?.shortName || null, logoUrl: team?.logo_url || null };
+        teamIndex[`${scorerList[sourceIndex]}:${String(team?.id ?? id)}`] = { id: String(team?.id ?? id), name: team?.name || "Team", shortName: team?.short_name || team?.shortName || null, logoUrl: team?.logo_url || null };
       }
     }
     const tournaments = {};
-    for (const installation of Object.values(source)) {
+    for (const [installationKey, installation] of Object.entries(source)) {
       for (const [key, raw] of Object.entries(installation?.tournaments || {})) {
         const t = raw || {};
+        const sourceID = String(t.installation_id || t.scorer_installation || installation?.installation_id || installation?.scorer_installation || installationKey);
         const tid = String(t.tournament_uid || t.tournament_id || key);
         const matches = {};
         for (const [matchKey, match] of Object.entries(t.matches || {})) {
@@ -83,8 +85,8 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
             matchId: String(m.match_uid || m.match_id || matchKey), status: m.status || "scheduled",
             title: m.title || "Match", scheduledAt: m.scheduled_at || null, venue: m.venue || t.venue || null,
             result: m.result || null, highlightUrl: m.highlight_url || null, liveUrl: m.youtube_url || null,
-            team1: m.team1 || m.team_a || teamIndex[String(m.team_a_id)] || { name: "TBD" },
-            team2: m.team2 || m.team_b || teamIndex[String(m.team_b_id)] || { name: "TBD" },
+            team1: m.team1 || m.team_a || teamIndex[`${sourceID}:${String(m.team_a_id)}`] || { name: "TBD" },
+            team2: m.team2 || m.team_b || teamIndex[`${sourceID}:${String(m.team_b_id)}`] || { name: "TBD" },
           };
         }
         tournaments[tid] = { tournamentId: String(t.tournament_id || tid), name: t.name || "Tournament",
