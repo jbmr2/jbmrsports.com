@@ -81,15 +81,17 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
         const matches = {};
         for (const [matchKey, match] of Object.entries(t.matches || {})) {
           const m = match || {};
-          matches[String(m.match_uid || m.match_id || matchKey)] = {
-            matchId: String(m.match_uid || m.match_id || matchKey), status: m.status || "scheduled",
+          const matchID = /^[a-f0-9]{32}$/.test(sourceID) && m.match_id != null ? `${sourceID}:${m.match_id}` : String(m.match_uid || m.match_id || matchKey);
+          matches[matchID] = {
+            matchId: matchID, status: m.status || "scheduled",
             title: m.title || "Match", scheduledAt: m.scheduled_at || null, venue: m.venue || t.venue || null,
             result: m.result || null, highlightUrl: m.highlight_url || null, liveUrl: m.youtube_url || null,
             team1: m.team1 || m.team_a || teamIndex[`${sourceID}:${String(m.team_a_id)}`] || { name: "TBD" },
             team2: m.team2 || m.team_b || teamIndex[`${sourceID}:${String(m.team_b_id)}`] || { name: "TBD" },
           };
         }
-        tournaments[tid] = { tournamentId: String(t.tournament_id || tid), name: t.name || "Tournament",
+        const catalogID = /^[a-f0-9]{32}$/.test(sourceID) && t.tournament_id != null ? `${sourceID}:${t.tournament_id}` : tid;
+        tournaments[catalogID] = { tournamentId: catalogID, name: t.name || "Tournament",
           logoUrl: t.logo_url || null, venue: t.venue || null, matches };
       }
     }
