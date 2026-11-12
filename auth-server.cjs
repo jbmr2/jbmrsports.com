@@ -66,6 +66,7 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
     const dynamicScorers = await Promise.all([...scorerIDs].filter((id) => !["80c7442eb2ca4aeabfb6779128d91b8a", "994bd24b405943c790d9b8b32d3e13e2", "6fca9fc7d4974919a43b149d32717119"].includes(id)).map((id) => db.ref(`scorers_public/${id}`).get()));
     const scorerValues = [scorer80.val(), scorer99.val(), scorer6.val(), ...dynamicScorers.map((s) => s.val())];
     const scorerList = [...scorerIDs];
+    const scorerByID = Object.fromEntries(scorerList.map((id, index) => [id, scorerValues[index]]));
     const teamIndex = {};
     for (const [sourceIndex, snapshot] of scorerValues.entries()) {
       for (const [id, team] of Object.entries(snapshot?.tables?.teams || {})) {
@@ -81,13 +82,18 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
         const matches = {};
         for (const [matchKey, match] of Object.entries(t.matches || {})) {
           const m = match || {};
-          const matchID = /^[a-f0-9]{32}$/.test(sourceID) && m.match_id != null ? `${sourceID}:${m.match_id}` : String(m.match_uid || m.match_id || matchKey);
+          const scorerMatches = Object.values(scorerByID[sourceID]?.tables?.matches || {});
+          const uid = m.match_uid || matchKey;
+          const scorerMatch = scorerMatches.find(row => row && row.match_uid && String(row.match_uid) === String(uid))
+            || (m.match_id != null ? scorerMatches.find(row => row && String(row.id) === String(m.match_id)) : null);
+          const numericID = m.match_id ?? scorerMatch?.id;
+          const matchID = /^[a-f0-9]{32}$/.test(sourceID) && numericID != null ? `${sourceID}:${numericID}` : String(m.match_uid || m.match_id || matchKey);
           matches[matchID] = {
             matchId: matchID, status: m.status || "scheduled",
             title: m.title || "Match", scheduledAt: m.scheduled_at || null, venue: m.venue || t.venue || null,
             result: m.result || null, highlightUrl: m.highlight_url || null, liveUrl: m.youtube_url || null,
-            team1: m.team1 || m.team_a || teamIndex[`${sourceID}:${String(m.team_a_id)}`] || { name: "TBD" },
-            team2: m.team2 || m.team_b || teamIndex[`${sourceID}:${String(m.team_b_id)}`] || { name: "TBD" },
+            team1: m.team1 || m.team_a || teamIndex[`${sourceID}:${String(m.team_a_id ?? scorerMatch?.team_a_id)}`] || { name: "TBD" },
+            team2: m.team2 || m.team_b || teamIndex[`${sourceID}:${String(m.team_b_id ?? scorerMatch?.team_b_id)}`] || { name: "TBD" },
           };
         }
         const catalogID = /^[a-f0-9]{32}$/.test(sourceID) && t.tournament_id != null ? `${sourceID}:${t.tournament_id}` : tid;
