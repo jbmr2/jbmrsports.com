@@ -53,8 +53,20 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
       db.ref("scorers_public/6fca9fc7d4974919a43b149d32717119").get(),
     ]);
     const source = feed.val() || {};
+    const scorerIDs = new Set(["80c7442eb2ca4aeabfb6779128d91b8a", "994bd24b405943c790d9b8b32d3e13e2", "6fca9fc7d4974919a43b149d32717119"]);
+    const discover = (node) => {
+      if (Array.isArray(node)) return node.forEach(discover);
+      if (!node || typeof node !== "object") return;
+      for (const [key, value] of Object.entries(node)) {
+        if ((key === "installation_id" || key === "scorer_installation") && typeof value === "string" && value.trim()) scorerIDs.add(value.trim());
+        discover(value);
+      }
+    };
+    discover(source);
+    const dynamicScorers = await Promise.all([...scorerIDs].filter((id) => !["80c7442eb2ca4aeabfb6779128d91b8a", "994bd24b405943c790d9b8b32d3e13e2", "6fca9fc7d4974919a43b149d32717119"].includes(id)).map((id) => db.ref(`scorers_public/${id}`).get()));
+    const scorerValues = [scorer80.val(), scorer99.val(), scorer6.val(), ...dynamicScorers.map((s) => s.val())];
     const teamIndex = {};
-    for (const snapshot of [scorer80.val(), scorer99.val(), scorer6.val()]) {
+    for (const snapshot of scorerValues) {
       for (const [id, team] of Object.entries(snapshot?.tables?.teams || {})) {
         teamIndex[String(team?.id ?? id)] = { id: String(team?.id ?? id), name: team?.name || "Team", shortName: team?.short_name || team?.shortName || null, logoUrl: team?.logo_url || null };
       }
@@ -88,7 +100,7 @@ app.get("/api/public/live-feed", authenticated, async (_req, res) => {
       }));
       return { matches };
     };
-    res.set("Cache-Control", "no-store").json({ ok: true, tournaments, scorers: [safeScorer(scorer80.val()), safeScorer(scorer99.val()), safeScorer(scorer6.val())] });
+    res.set("Cache-Control", "no-store").json({ ok: true, tournaments, scorers: scorerValues.map(safeScorer) });
   } catch {
     res.status(502).json({ ok: false, error: "Live feed temporarily unavailable" });
   }
