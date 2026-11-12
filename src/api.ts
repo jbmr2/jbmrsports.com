@@ -1,6 +1,6 @@
 export const API_BASE = 'https://crickdbmodule-api-144271912366.asia-south1.run.app'
 export const FIREBASE_RTDB =
-  'https://ncrplt20-1c022-default-rtdb.asia-southeast1.firebasedatabase.app'
+  'https://jbmrsports-cricket-live-default-rtdb.asia-southeast1.firebasedatabase.app'
 export const FIREBASE_OTT_URL = `${FIREBASE_RTDB}/ott.json`
 export const MEDIA_BASE = 'https://storage.googleapis.com/crickbuck'
 
