@@ -238,7 +238,50 @@ type FirebaseFeed = {
 export async function fetchFirebaseFeed(): Promise<FirebaseFeed> {
   const res = await fetch(FIREBASE_OTT_URL)
   if (!res.ok) throw new Error(`Firebase ${res.status}`)
-  return res.json()
+  const ott = await res.json()
+  if (ott?.tournaments && Object.keys(ott.tournaments).length > 0) return ott
+
+  // The scorer/admin publisher currently writes the live catalog under
+  // tournament_feed/{installation}/tournaments. Keep the OTT reader compatible
+  // with that canonical feed instead of showing an empty catalog when /ott is stale.
+  const feedRes = await fetch(`${FIREBASE_RTDB}/tournament_feed.json`)
+  if (!feedRes.ok) throw new Error(`Firebase tournament feed ${feedRes.status}`)
+  const feed = await feedRes.json() as Record<string, any>
+  const tournaments: Record<string, any> = {}
+  for (const installation of Object.values(feed)) {
+    for (const [key, tournament] of Object.entries((installation as any)?.tournaments || {})) {
+      const t = tournament as any
+      const tournamentId = String(t.tournament_id ?? t.tournamentId ?? key)
+      const tournamentKey = String(t.tournament_uid ?? t.tournamentUid ?? key)
+      const target = tournaments[tournamentKey] ||= {
+        tournamentId,
+        name: t.name || 'Tournament',
+        logoUrl: t.logo_url || t.logoUrl,
+        location: t.venue || t.location,
+        type: t.type,
+        format: t.format,
+        showOnOtt: t.show_on_ott !== false,
+        matches: {},
+      }
+      for (const [matchKey, match] of Object.entries(t.matches || {})) {
+        const m = match as any
+        const matchId = String(m.match_uid ?? m.matchUid ?? m.match_id ?? matchKey)
+        target.matches[matchId] ||= {
+          ...m,
+          matchId,
+          tournamentId,
+          tournamentName: target.name,
+          scheduledAt: m.scheduled_at || m.scheduledAt,
+          status: m.status || 'scheduled',
+          highlightUrl: m.highlight_url || m.highlightUrl,
+          liveUrl: m.youtube_url || m.live_url || m.liveUrl,
+          team1: m.team1 || m.team_a || { name: 'TBD' },
+          team2: m.team2 || m.team_b || { name: 'TBD' },
+        }
+      }
+    }
+  }
+  return { tournaments }
 }
 
 export function mapFirebaseTournaments(feed: FirebaseFeed): ApiTournament[] {
