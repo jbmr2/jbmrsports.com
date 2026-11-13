@@ -1,4 +1,5 @@
 {
   "tokenSha256": "286ca2cbba0741a71db7c200443b23a68767cb98d86994b2d3a814a0407668bc",
-  "expiresAt": 1794634521
+  "enabled": true,
+  "grantVersion": "continuous-v1"
 }

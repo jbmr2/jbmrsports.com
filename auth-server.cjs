@@ -35,7 +35,7 @@ app.use(express.json({ limit: "8kb" }));
 app.use(require("./lib/simulator-access.cjs").middleware(() => require("firebase-admin/auth").getAuth()));
 app.get("/health", (_req, res) => res.status(authConfigurationError ? 503 : 200).json({
   ok: !authConfigurationError, service: "jbmr-auth", provider: "2factor", template: "OTP1",
-  error: authConfigurationError, apiVersion: "20261113-hosted-api-1",
+  error: authConfigurationError, apiVersion: "20261113-hosted-api-2",
 }));
 app.use(["/sendOtp", "/verifyOtp", "/verifyPinLogin"], (_req, res, next) => {
   if (authConfigurationError) return res.status(503).json({ ok: false, error: "Login is temporarily unavailable. Please try again later." });
