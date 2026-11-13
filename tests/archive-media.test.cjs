@@ -19,3 +19,11 @@ test('existing highlight remains authoritative', () => {
   preserveArchiveMedia([payload(match({highlight_url:'https://example.com/old.mp4'})),payload(newer)]);
   assert.equal(newer.highlight_url,'https://example.com/new.mp4');
 });
+test('same numeric IDs in separate scorer installations never inherit each other’s video', () => {
+  const newer = match({});
+  preserveArchiveMedia([
+    { ...payload(match({highlight_url:'https://example.invalid/a.mp4'})), installation_id:'a' },
+    { ...payload(newer), installation_id:'b' }
+  ]);
+  assert.equal(newer.highlight_url,undefined);
+});

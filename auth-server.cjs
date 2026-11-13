@@ -1,7 +1,6 @@
 const path = require("node:path");
 const express = require("express");
 const { initializeApp, cert } = require("firebase-admin/app");
-const { getDatabaseWithUrl } = require("firebase-admin/database");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -31,10 +30,12 @@ try {
 const { handleSendOtp, handleVerifyOtp, handleVerifyPinLogin, createPinHash } = require("./lib/otp-2factor.cjs");
 const app = express();
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 app.use(express.json({ limit: "8kb" }));
+app.use(require("./lib/simulator-access.cjs").middleware(() => require("firebase-admin/auth").getAuth()));
 app.get("/health", (_req, res) => res.status(authConfigurationError ? 503 : 200).json({
   ok: !authConfigurationError, service: "jbmr-auth", provider: "2factor", template: "OTP1",
-  error: authConfigurationError,
+  error: authConfigurationError, apiVersion: "20261113-hosted-api-1",
 }));
 app.use(["/sendOtp", "/verifyOtp", "/verifyPinLogin"], (_req, res, next) => {
   if (authConfigurationError) return res.status(503).json({ ok: false, error: "Login is temporarily unavailable. Please try again later." });
@@ -43,83 +44,11 @@ app.use(["/sendOtp", "/verifyOtp", "/verifyPinLogin"], (_req, res, next) => {
 app.post("/sendOtp", handleSendOtp);
 app.post("/verifyOtp", handleVerifyOtp);
 app.post("/verifyPinLogin", handleVerifyPinLogin);
-app.get("/api/public/live-feed", authenticated, async (_req, res) => {
-  try {
-    const db = getDatabaseWithUrl("https://jbmrsports-cricket-live-default-rtdb.asia-southeast1.firebasedatabase.app");
-    const [feed, scorer80, scorer99, scorer6] = await Promise.all([
-      db.ref("tournament_feed").get(),
-      db.ref("scorers_public/80c7442eb2ca4aeabfb6779128d91b8a").get(),
-      db.ref("scorers_public/994bd24b405943c790d9b8b32d3e13e2").get(),
-      db.ref("scorers_public/6fca9fc7d4974919a43b149d32717119").get(),
-    ]);
-    const source = feed.val() || {};
-    const scorerIDs = new Set(["80c7442eb2ca4aeabfb6779128d91b8a", "994bd24b405943c790d9b8b32d3e13e2", "6fca9fc7d4974919a43b149d32717119"]);
-    const discover = (node) => {
-      if (Array.isArray(node)) return node.forEach(discover);
-      if (!node || typeof node !== "object") return;
-      for (const [key, value] of Object.entries(node)) {
-        if ((key === "installation_id" || key === "scorer_installation") && typeof value === "string" && value.trim()) scorerIDs.add(value.trim());
-        discover(value);
-      }
-    };
-    discover(source);
-    const dynamicScorers = await Promise.all([...scorerIDs].filter((id) => !["80c7442eb2ca4aeabfb6779128d91b8a", "994bd24b405943c790d9b8b32d3e13e2", "6fca9fc7d4974919a43b149d32717119"].includes(id)).map((id) => db.ref(`scorers_public/${id}`).get()));
-    const scorerValues = [scorer80.val(), scorer99.val(), scorer6.val(), ...dynamicScorers.map((s) => s.val())];
-    const scorerList = [...scorerIDs];
-    const scorerByID = Object.fromEntries(scorerList.map((id, index) => [id, scorerValues[index]]));
-    const teamIndex = {};
-    for (const [sourceIndex, snapshot] of scorerValues.entries()) {
-      for (const [id, team] of Object.entries(snapshot?.tables?.teams || {})) {
-        teamIndex[`${scorerList[sourceIndex]}:${String(team?.id ?? id)}`] = { id: String(team?.id ?? id), name: team?.name || "Team", shortName: team?.short_name || team?.shortName || null, logoUrl: team?.logo_url || null };
-      }
-    }
-    const tournaments = {};
-    for (const [installationKey, installation] of Object.entries(source)) {
-      for (const [key, raw] of Object.entries(installation?.tournaments || {})) {
-        const t = raw || {};
-        const sourceID = String(t.installation_id || t.scorer_installation || installation?.installation_id || installation?.scorer_installation || installationKey);
-        const tid = String(t.tournament_uid || t.tournament_id || key);
-        const matches = {};
-        for (const [matchKey, match] of Object.entries(t.matches || {})) {
-          const m = match || {};
-          const scorerMatches = Object.values(scorerByID[sourceID]?.tables?.matches || {});
-          const uid = m.match_uid || matchKey;
-          const scorerMatch = scorerMatches.find(row => row && row.match_uid && String(row.match_uid) === String(uid))
-            || (m.match_id != null ? scorerMatches.find(row => row && String(row.id) === String(m.match_id)) : null);
-          const numericID = m.match_id ?? scorerMatch?.id;
-          const matchID = /^[a-f0-9]{32}$/.test(sourceID) && numericID != null ? `${sourceID}:${numericID}` : String(m.match_uid || m.match_id || matchKey);
-          matches[matchID] = {
-            matchId: matchID, status: m.status || "scheduled",
-            title: m.title || "Match", scheduledAt: m.scheduled_at || null, venue: m.venue || t.venue || null,
-            result: m.result || null, highlightUrl: m.highlight_url || null, liveUrl: m.youtube_url || null,
-            team1: m.team1 || m.team_a || teamIndex[`${sourceID}:${String(m.team_a_id ?? scorerMatch?.team_a_id)}`] || { name: "TBD" },
-            team2: m.team2 || m.team_b || teamIndex[`${sourceID}:${String(m.team_b_id ?? scorerMatch?.team_b_id)}`] || { name: "TBD" },
-          };
-        }
-        const catalogID = /^[a-f0-9]{32}$/.test(sourceID) && t.tournament_id != null ? `${sourceID}:${t.tournament_id}` : tid;
-        tournaments[catalogID] = { tournamentId: catalogID, name: t.name || "Tournament",
-          logoUrl: t.logo_url || null, venue: t.venue || null, matches };
-      }
-    }
-    const safeScorer = (snapshot) => {
-      const tables = snapshot?.tables || {};
-      const matches = Object.values(tables.matches || {}).map((m) => ({
-        id: m.id, status: m.status, title: m.title, scheduledAt: m.scheduled_at,
-        teamAId: m.team_a_id, teamBId: m.team_b_id, tournamentId: m.tournament_id,
-        innings: Object.values(tables.innings || {}).filter((i) => i.match_id === m.id).map((i) => ({ id: i.id, number: i.number, state: i.state, battingTeamId: i.batting_team_id })),
-      }));
-      return { matches };
-    };
-    res.set("Cache-Control", "no-store").json({ ok: true, tournaments, scorers: scorerValues.map(safeScorer) });
-  } catch {
-    res.status(502).json({ ok: false, error: "Live feed temporarily unavailable" });
-  }
-});
 async function authenticated(req, res, next) {
   if (authConfigurationError) return res.status(503).json({ ok: false, error: "Login unavailable" });
   try {
     const token = String(req.headers.authorization || "").replace(/^Bearer /, "");
-    req.user = await require("firebase-admin/auth").getAuth().verifyIdToken(token);
+    req.user = req.verifiedUser || await require("firebase-admin/auth").getAuth().verifyIdToken(token);
     next();
   } catch {
     res.status(401).json({ ok: false, error: "Please sign in again" });
@@ -127,15 +56,9 @@ async function authenticated(req, res, next) {
 }
 require("./lib/admin-visibility.cjs").install(app);
 require("./lib/shorts.cjs").install(app, authenticated);
-app.get("/api/scoring-archives", authenticated, async (_req, res) => {
-  try {
-    const payloads = await require("./lib/admin-visibility.cjs").archives();
-    res.set("Cache-Control", "private, no-store").json({ ok: true, archives: payloads });
-  } catch (error) {
-    console.error("JBMR archive API failed", error.code ?? error.name, error.message);
-    res.status(502).json({ ok: false, error: "Match archives could not load" });
-  }
-});
+require("./lib/public-archives.cjs").install(app, authenticated);
+require("./lib/ott-feed-api.cjs").install(app, authenticated);
+require("./lib/simulator-preview.cjs").install(app, authenticated);
 app.post("/savePin", authenticated, async (req, res) => {
   const phone = String(req.user.phone_number || req.user.phone || "").replace(/^\+91/, "");
   const pin = String(req.body.pin || "");

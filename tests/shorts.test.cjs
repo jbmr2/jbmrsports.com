@@ -1,10 +1,13 @@
 const assert = require('node:assert/strict');
-const {ownsBall,phone,performancePackages}=require('../lib/shorts.cjs');
+const {ownsBall,phone,performancePackages,applyPlayerDirectory}=require('../lib/shorts.cjs');
 const tables={players:[{id:1,name:'Batter',mobile_number:'9876543210'},{id:2,name:'Bowler',phone:'+919876543211'}],matches:[{id:7,tournament_id:9,team_a_id:1,team_b_id:2}],teams:[{id:1,name:'A'},{id:2,name:'B'}],tournaments:[{id:9,name:'Test tournament'}],innings:[{id:10,match_id:7}],balls:[
 {id:101,innings_id:10,striker_id:1,bowler_id:2,seq:1,event:{bat_runs:4},clip_status:'ready',clip:{url:'https://example.com/1.mp4'}},
 {id:102,innings_id:10,striker_id:1,bowler_id:2,seq:2,event:{bat_runs:2}},
 {id:103,innings_id:10,striker_id:1,bowler_id:2,seq:3,event:{dismissal:'bowled',bat_runs:0},kind:'wicket',clip:{status:'ready',url:'https://example.com/3.mp4'}},
 {id:104,innings_id:10,striker_id:1,bowler_id:2,seq:4,event:{dismissal:'run_out',bat_runs:0},kind:'wicket'}]};
+// Contact fields in a scoring archive alone never establish ownership.
+assert.equal(ownsBall(tables,'7','101','9876543210'),false);
+applyPlayerDirectory(tables,[{player_id:1,mobile:'9876543210'},{player_id:2,mobile:'9876543211'}]);
 assert.equal(phone('+91 98765 43210'),'9876543210');assert.equal(phone('87656789876'),'');
 assert.equal(ownsBall(tables,'7','101','+919876543210'),true);
 assert.equal(ownsBall(tables,'7','101','+919876543211'),true);
@@ -20,15 +23,18 @@ assert.equal(performancePackages([{tables}],'9876543210',{tournaments:{9:{show:f
 assert.equal(performancePackages([{tables},{tables}],'9876543210',rules).length,2);
 console.log('Passed: verified phone ownership, cross-match denial, missing-phone denial, batting coverage, wicket attribution, visibility and deduplication');
 
-const {applyPlayerDirectory}=require('../lib/shorts.cjs');
 const roster={players:[{id:62,player_uid:'p_correct'}]};
 applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_wrong',mobile:'919876543210'}]);
-assert.equal(roster.players[0].download_phone,undefined);
+assert.equal(roster.players[0].download_phone,'');
 applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_correct',mobile:'919876543210'}]);
-assert.equal(roster.players[0].directory_phone,'9876543210');
+assert.equal(roster.players[0].download_phone,'9876543210');
 applyPlayerDirectory(roster,[{player_id:62,public_player_uid:'p_correct',mobile:'919876543210'}],{'62':{phone:''}});
 assert.equal(roster.players[0].download_phone,'');
 console.log('Directory UID matching and override revocation passed');
+const keyedRoster={players:{'62':{player_uid:'p_correct'}}};
+applyPlayerDirectory(keyedRoster,{directoryKey:{playerId:62,public_player_uid:'p_correct',mobile:'invalid',unique_id:'919876543210'}});
+assert.equal(keyedRoster.players['62'].performance_phone,'9876543210');
+console.log('Keyed player directory and fallback phone aliases resolve correctly');
 
 const boundary=performancePackages([{tables}],'9876543210',rules).find(p=>p.category==='fours');
 assert.equal(boundary.totalClips,1);assert.equal(boundary.clips.length,1);assert.equal(boundary.role,'batting');
@@ -52,3 +58,12 @@ assert.equal(ownsBall(stranger.tables,'7','101','9876543212'),false);
 assert.equal(selectClip([{tables}],'rtdb-ball-8-101',rules,'9876543210'),null);
 assert.equal(selectClip([{tables}],'rtdb-ball-7-101',{tournaments:{9:{show:false}}},'9876543210'),null);
 console.log('Mirrored clip selection preserves verified ownership and denies other users/hidden matches');
+
+const keyedTables={players:{'9876543210':{name:'Keyed Batter',mobileNumber:'9876543210'}},
+  matches:{'7':{tournament_id:9,team_a_id:1,team_b_id:2}},teams:tables.teams,tournaments:tables.tournaments,
+  innings:{'10':{match_id:7}},balls:{'101':{innings_id:10,striker_id:'9876543210',bowler_id:2,seq:1,event:{bat_runs:4},clip_status:'ready',clip:{url:'https://example.com/1.mp4'}}}};
+applyPlayerDirectory(keyedTables,[{player_id:'9876543210',mobile:'9876543210'}]);
+const keyedPerformance=performancePackages([{tables:keyedTables}],'9876543210',rules);
+assert.equal(keyedPerformance.find(p=>p.category==='innings')?.totalClips,1);
+assert.equal(keyedPerformance.find(p=>p.category==='fours')?.clips.length,1);
+console.log('Object-keyed Firebase tables preserve player, match, innings and ball IDs');
