@@ -81,4 +81,10 @@ app.post("/savePin", authenticated, async (req, res) => {
 app.use(express.static(path.join(__dirname, "dist")));
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 app.use((_req, res) => res.status(404).json({ ok: false, error: "Endpoint not found" }));
-app.listen(Number(process.env.PORT || 3000), "0.0.0.0");
+const server = app.listen(Number(process.env.PORT || 3000), "0.0.0.0");
+require('./lib/live-socket.cjs').install(server, {
+  verifyToken: token => require('firebase-admin/auth').getAuth().verifyIdToken(token),
+  verifyAdmin: token => require('./lib/admin-visibility.cjs').isAuthorizedDevice(token),
+  revision: () => require('./lib/mysql-scoring.cjs').liveRevision(),
+  invalidate: () => { require('./lib/mysql-scoring.cjs').invalidate(); require('./lib/simulator-preview.cjs').invalidateLiveData(); }
+});
