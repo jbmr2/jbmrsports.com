@@ -22,6 +22,16 @@ function fixture() {
   };
 }
 const rules = { tournaments: { 9: { show: true } } };
+test('published score data preserves a revised ball limit and target', () => {
+  const input = fixture();
+  input.tables.innings[0].total_balls = 80;
+  input.tables.innings[0].target = 130;
+  input.tables.innings[0].state.total_balls = 80;
+  const innings = publishedArchives([input], rules)[0].tables.innings[0];
+  assert.equal(innings.total_balls, 80);
+  assert.equal(innings.target, 130);
+  assert.equal(innings.state.total_balls, 80);
+});
 test('public archives remove hidden rows and private fields including encoded nested JSON', () => {
   const source = fixture(), before = JSON.stringify(source);
   const result = publishedArchives([source], rules), output = JSON.stringify(result);
