@@ -27,12 +27,14 @@ try {
   authConfigurationError = err.message;
   console.error("Login configuration:", authConfigurationError);
 }
-const { handleSendOtp, handleVerifyOtp, handleVerifyPinLogin, createPinHash } = require("./lib/otp-2factor.cjs");
+const { handleSendOtp, handleVerifyOtp, handleVerifyPinLogin, verifyOtp, verifyPinLogin, createPinHash } = require("./lib/otp-2factor.cjs");
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "8kb" }));
 app.use(require("./lib/simulator-access.cjs").middleware(() => require("firebase-admin/auth").getAuth()));
+const mysqlAccounts = require("./lib/mysql-accounts.cjs");
+const mysqlSessionsEnabled = process.env.JBMR_MYSQL_SESSIONS !== "false";
 app.get("/health", async (_req, res) => {
   let authStorageReady = false;
   try {
@@ -41,10 +43,19 @@ app.get("/health", async (_req, res) => {
   } catch (error) {
     console.warn("MySQL auth health check failed", error.code || error.name);
   }
+  let mysqlSessionsReady = false;
+  if (mysqlSessionsEnabled && authStorageReady) {
+    try {
+      await mysqlAccounts.checkSchema();
+      mysqlSessionsReady = true;
+    } catch (error) {
+      console.warn("MySQL session health check failed", error.code || error.name);
+    }
+  }
   const ok = !authConfigurationError && authStorageReady;
   res.status(ok ? 200 : 503).json({
     ok, service: "jbmr-auth", provider: "2factor", template: "OTP1",
-    authStorage: "mysql", authStorageReady, error: authConfigurationError
+    authStorage: "mysql", authStorageReady, mysqlSessionsReady, error: authConfigurationError
   });
 });
 app.use(["/sendOtp", "/verifyOtp", "/verifyPinLogin"], (_req, res, next) => {
@@ -54,15 +65,44 @@ app.use(["/sendOtp", "/verifyOtp", "/verifyPinLogin"], (_req, res, next) => {
 app.post("/sendOtp", handleSendOtp);
 app.post("/verifyOtp", handleVerifyOtp);
 app.post("/verifyPinLogin", handleVerifyPinLogin);
-async function authenticated(req, res, next) {
-  if (authConfigurationError) return res.status(503).json({ ok: false, error: "Login unavailable" });
-  try {
-    const token = String(req.headers.authorization || "").replace(/^Bearer /, "");
-    req.user = req.verifiedUser || await require("firebase-admin/auth").getAuth().verifyIdToken(token);
-    next();
-  } catch {
-    res.status(401).json({ ok: false, error: "Please sign in again" });
+function bearerToken(req) {
+  return /^Bearer (\S+)$/i.exec(String(req.headers.authorization || ""))?.[1] || "";
+}
+
+async function verifyAppToken(token) {
+  if (mysqlSessionsEnabled && mysqlAccounts.isSessionToken(token)) {
+    return mysqlAccounts.verifySession(token);
   }
+  if (authConfigurationError) throw new Error("Firebase authentication unavailable");
+  return require("firebase-admin/auth").getAuth().verifyIdToken(token);
+}
+
+async function authenticated(req, res, next) {
+  try {
+    req.user = req.verifiedUser || await verifyAppToken(bearerToken(req));
+  } catch {
+    return res.status(401).json({ ok: false, error: "Please sign in again" });
+  }
+  next();
+}
+
+if (mysqlSessionsEnabled) {
+  app.use("/api/auth", (_req, res, next) => { res.set("Cache-Control", "no-store"); next(); });
+  app.post("/api/auth/sendOtp", handleSendOtp);
+  app.post("/api/auth/verifyOtp", (req, res) => verifyOtp(req, res, mysqlAccounts.issueSessionForOtp));
+  app.post("/api/auth/verifyPin", (req, res) => verifyPinLogin(req, res, mysqlAccounts.issueSessionForPin));
+  app.get("/api/auth/session", authenticated, (req, res) => {
+    if (!mysqlAccounts.isSessionToken(bearerToken(req))) return res.status(401).json({ ok: false });
+    res.set("Cache-Control", "no-store").json({ uid: req.user.uid, phone: accountPhone(req.user) });
+  });
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      await mysqlAccounts.revokeSession(bearerToken(req));
+      res.sendStatus(204);
+    } catch {
+      res.status(503).json({ ok: false, error: "Logout is temporarily unavailable" });
+    }
+  });
 }
 require("./lib/admin-visibility.cjs").install(app);
 require("./lib/shorts.cjs").install(app, authenticated);
@@ -108,7 +148,7 @@ app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.htm
 app.use((_req, res) => res.status(404).json({ ok: false, error: "Endpoint not found" }));
 const server = app.listen(Number(process.env.PORT || 3000), "0.0.0.0");
 require('./lib/live-socket.cjs').install(server, {
-  verifyToken: token => require('firebase-admin/auth').getAuth().verifyIdToken(token),
+  verifyToken: verifyAppToken,
   verifyAdmin: token => require('./lib/admin-visibility.cjs').isAuthorizedDevice(token),
   revision: () => require('./lib/mysql-scoring.cjs').liveRevision(),
   invalidate: () => { require('./lib/mysql-scoring.cjs').invalidate(); require('./lib/simulator-preview.cjs').invalidateLiveData(); }

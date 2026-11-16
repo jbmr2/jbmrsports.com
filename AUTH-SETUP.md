@@ -41,3 +41,17 @@ This stage moves PIN records, OTP challenges, and login rate limits. Firebase Au
 the session accepted by installed iOS clients and protected data routes.
 Keep the Firebase project and the old PIN records until the new login and the
 account migration have been verified. The import does not delete source data.
+
+## MySQL login sessions
+
+Create the account and session tables with `sql/mysql-accounts.sql`. Run
+`node scripts/import-app-accounts.cjs` to count eligible Firebase phone users.
+Run it with `--apply` from the Hostinger app environment before rolling out the updated app. Use
+`JBMR_MYSQL_SESSIONS=false` to disable the new endpoints if needed. This preserves account IDs, including disabled
+accounts. Pause account creation on the legacy login routes during the final
+import so both login versions retain the same account IDs.
+
+The new login endpoints currently serve imported accounts. The updated client can use `/api/auth/sendOtp`, `/api/auth/verifyOtp`,
+`/api/auth/verifyPin`, `/api/auth/session`, and `/api/auth/logout`. Tokens
+expire after 30 days. MySQL stores only token hashes. Existing iOS clients
+continue to use the legacy routes until the updated app has been rolled out.
