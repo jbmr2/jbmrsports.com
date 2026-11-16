@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JBMR Sports · Live data health</title>
+<style>
+:root { color-scheme: dark; font: 16px system-ui, sans-serif; background: #101318; color: #f7f7fa; }
+main { max-width: 44rem; margin: 10vh auto; padding: 0 1.25rem; }
+h1 { font-size: clamp(2rem, 6vw, 3.5rem); margin-bottom: .5rem; }
+dl { background: #1b212b; border-radius: 1rem; padding: 1.25rem; }
+dt { color: #bdc7d8; margin-top: 1rem; }
+dt:first-child { margin-top: 0; }
+dd { margin: .3rem 0 0; font-weight: 650; }
+p { color: #bdc7d8; line-height: 1.5; }
+</style>
+<main>
+<h1>Live data health</h1>
+<dl>
+<dt>MySQL scoring connection</dt><dd id="status">Checking…</dd>
+<dt>Last server check</dt><dd id="checked">—</dd>
+<dt>Latest scoring change detected</dt><dd id="changed">Waiting for a change</dd>
+</dl>
+<p>Times are shown in your local timezone. This page checks automatically every 2 seconds and shows when the server detected a change.</p>
+</main>
+<script>
+const showTime = value => value ? new Date(value).toLocaleString() : '—';
+async function refresh() {
+  try {
+    const response = await fetch('/api/datahealth', { signal: AbortSignal.timeout(8000) });
+    if (!response.ok) throw new Error();
+    const data = await response.json();
+    document.querySelector('#status').textContent = data.reachable ? 'Connected' : 'Unavailable';
+    document.querySelector('#checked').textContent = showTime(data.lastCheckAt);
+    document.querySelector('#changed').textContent = data.latestChangeAt ? showTime(data.latestChangeAt) : 'Waiting for a change';
+  } catch {
+    document.querySelector('#status').textContent = 'Health check unavailable';
+  } finally {
+    setTimeout(refresh, 2000);
+  }
+}
+refresh();
+</script>
+</html>

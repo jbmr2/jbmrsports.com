@@ -143,6 +143,7 @@ app.post("/savePin", authenticated, async (req, res) => {
     res.json({ ok: true });
   } catch { res.status(502).json({ ok: false, error: "PIN could not be saved" }); }
 });
+require("./lib/data-health.cjs").install(app, () => require("./lib/mysql-scoring.cjs").liveRevision());
 app.use(express.static(path.join(__dirname, "dist")));
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 app.use((_req, res) => res.status(404).json({ ok: false, error: "Endpoint not found" }));
