@@ -15,8 +15,29 @@ Set these environment variables in Hostinger (do not place credentials in websit
 
 Open `/health` on the deployed URL. The response must be JSON with service jbmr-auth. Routes are `/sendOtp`, `/verifyOtp`, `/verifyPinLogin`, `/savePin`, and `/api/scoring-archives`.
 
-The server sends OTP through 2Factor AUTOGEN/OTP1, binds the session to the phone, and verifies the OTP before issuing a Firebase custom token. PIN records and completed archives use the named `criccricket` Firestore database. PINs are stored using a salted scrypt hash; legacy PIN hashes upgrade on successful PIN login.
+The server sends OTP through 2Factor AUTOGEN/OTP1, binds the session to the phone, and verifies the OTP before issuing a Firebase custom token. Completed archives use the named `criccricket` Firestore database. PINs are stored using a salted scrypt hash; legacy PIN hashes upgrade on successful PIN login.
 
 The iOS app is configured with JBMRAuthAPIBaseURL=https://jbmrsports.com. After deployment, /health must return JSON before trying OTP. Real SMS testing requires a chosen recipient.
 
-Login and scoring now use jbmrsports-cricket-live. User and PIN records are stored in the named criccricket Firestore database. Old cloud-storage-eaca9 users and PINs are not migrated; verify OTP and create a PIN again.
+Login and scoring now use jbmrsports-cricket-live. User profiles are stored in the named criccricket Firestore database. Old cloud-storage-eaca9 users and PINs are not migrated; verify OTP and create a PIN again.
+
+## Moving PIN records to MySQL
+
+Use a dedicated Hostinger MySQL database for auth, with a separate app user.
+Hostinger's database setup writes `DB_NAME`, `DB_USER`, and `DB_PASSWORD`
+into the Node.js environment. Create the tables in `sql/pin-auth.sql` using
+that database. The app connects to Hostinger's local MySQL listener on
+`127.0.0.1:3306`.
+
+Run `node scripts/import-phone-pins.cjs` with access to the existing Firebase
+project to review counts. During the cutover, pause PIN setup on the old
+backend and run `node scripts/import-phone-pins.cjs --apply` from the host that
+can reach MySQL. Resolve any skipped records before proceeding. Import preserves
+the account UID and existing verifier and never overwrites a MySQL PIN. Run it
+before opening PIN setup on the new backend. Then verify OTP, PIN setup, an
+imported user's PIN login, rate limiting, and account deletion with test accounts.
+
+This stage moves PIN records, OTP challenges, and login rate limits. Firebase Auth still provides
+the session accepted by installed iOS clients and protected data routes.
+Keep the Firebase project and the old PIN records until the new login and the
+account migration have been verified. The import does not delete source data.

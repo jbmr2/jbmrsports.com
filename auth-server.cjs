@@ -33,10 +33,20 @@ app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "8kb" }));
 app.use(require("./lib/simulator-access.cjs").middleware(() => require("firebase-admin/auth").getAuth()));
-app.get("/health", (_req, res) => res.status(authConfigurationError ? 503 : 200).json({
-  ok: !authConfigurationError, service: "jbmr-auth", provider: "2factor", template: "OTP1",
-  error: authConfigurationError, apiVersion: "20261113-hosted-api-2",
-}));
+app.get("/health", async (_req, res) => {
+  let authStorageReady = false;
+  try {
+    await require("./lib/mysql-pin.cjs").checkSchema();
+    authStorageReady = true;
+  } catch (error) {
+    console.warn("MySQL auth health check failed", error.code || error.name);
+  }
+  const ok = !authConfigurationError && authStorageReady;
+  res.status(ok ? 200 : 503).json({
+    ok, service: "jbmr-auth", provider: "2factor", template: "OTP1",
+    authStorage: "mysql", authStorageReady, error: authConfigurationError
+  });
+});
 app.use(["/sendOtp", "/verifyOtp", "/verifyPinLogin"], (_req, res, next) => {
   if (authConfigurationError) return res.status(503).json({ ok: false, error: "Login is temporarily unavailable. Please try again later." });
   next();
@@ -59,22 +69,37 @@ require("./lib/shorts.cjs").install(app, authenticated);
 require("./lib/public-archives.cjs").install(app, authenticated);
 require("./lib/ott-feed-api.cjs").install(app, authenticated);
 require("./lib/simulator-preview.cjs").install(app, authenticated);
+function accountPhone(user) {
+  return String(user.phone_number || user.phone || "").replace(/^\+91/, "");
+}
+
+app.get("/pinStatus", authenticated, async (req, res) => {
+  const phone = accountPhone(req.user);
+  if (!/^\d{10}$/.test(phone)) return res.json({ configured: false });
+  try {
+    const row = await require("./lib/mysql-pin.cjs").findPin(phone);
+    res.json({ configured: row?.uid === req.user.uid });
+  } catch {
+    res.status(503).json({ error: "PIN status unavailable" });
+  }
+});
+app.post("/deletePin", authenticated, async (req, res) => {
+  const phone = accountPhone(req.user);
+  try {
+    if (/^\d{10}$/.test(phone)) await require("./lib/mysql-pin.cjs").deletePin(phone, req.user.uid);
+    res.json({ ok: true });
+  } catch {
+    res.status(503).json({ error: "PIN could not be removed" });
+  }
+});
 app.post("/savePin", authenticated, async (req, res) => {
-  const phone = String(req.user.phone_number || req.user.phone || "").replace(/^\+91/, "");
+  const phone = accountPhone(req.user);
   const pin = String(req.body.pin || "");
   const legacyHash = String(req.body.pinHash || "");
   if (!/^\d{10}$/.test(phone) || (!/^\d{4}$/.test(pin) && !/^[a-f0-9]{64}$/.test(legacyHash))) return res.status(400).json({ ok: false, error: "Invalid PIN setup" });
   try {
     const hash = /^\d{4}$/.test(pin) ? createPinHash(pin) : legacyHash;
-    const db = require("firebase-admin/firestore").getFirestore("criccricket");
-    const batch = db.batch();
-    batch.set(db.collection("phonePins").doc(phone), { uid: req.user.uid, pinHash: hash, updatedAt: new Date() }, { merge: true });
-    const userRef = db.collection("users").doc(req.user.uid);
-    if ((await userRef.get()).exists) {
-      const removeLegacyVerifier = require("firebase-admin/firestore").FieldValue.delete();
-      batch.set(userRef, { pinHash: removeLegacyVerifier, pinUpdatedAt: removeLegacyVerifier }, { merge: true });
-    }
-    await batch.commit();
+    await require("./lib/mysql-pin.cjs").savePin(phone, req.user.uid, hash);
     res.json({ ok: true });
   } catch { res.status(502).json({ ok: false, error: "PIN could not be saved" }); }
 });
