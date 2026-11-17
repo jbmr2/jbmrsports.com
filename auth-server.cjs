@@ -32,7 +32,7 @@ const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "8kb" }));
-app.use(require("./lib/simulator-access.cjs").middleware(() => require("firebase-admin/auth").getAuth()));
+app.use(require("./lib/simulator-access.cjs").middleware(verifyAppToken));
 const mysqlAccounts = require("./lib/mysql-accounts.cjs");
 const mysqlSessionsEnabled = process.env.JBMR_MYSQL_SESSIONS !== "false";
 app.get("/health", async (_req, res) => {

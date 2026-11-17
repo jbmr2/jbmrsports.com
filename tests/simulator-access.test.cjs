@@ -29,7 +29,7 @@ test('preview scope cannot change PINs, publish content, comment or download', (
   assert.equal(allowedRequest({ method: 'GET', path: '/api/my-performance/analytics/batting' }), true);
 });
 test('verified preview token reaches reads and is blocked before write handlers', async () => {
-  const guard = middleware(() => ({ verifyIdToken: async () => preview() }));
+  const guard = middleware(async () => preview());
   let calls = 0;
   const read = { headers: { authorization: 'Bearer signed' }, method: 'GET', path: '/api/scoring-archives' };
   await guard(read, response(), () => calls++);
@@ -39,14 +39,14 @@ test('verified preview token reaches reads and is blocked before write handlers'
   assert.equal(res.code, 403); assert.equal(calls, 1);
 });
 test('forged tokens and expired claims fail, normal users receive no preview access', async () => {
-  const expired = middleware(() => ({ verifyIdToken: async () => ({ ...preview(), preview_expires_at: 1 }) }));
+  const expired = middleware(async () => ({ ...preview(), preview_expires_at: 1 }));
   const request = { headers: { authorization: 'Bearer signed', 'x-jbmr-simulator-player': 'forged' }, method: 'GET', path: '/api/simulator/players' };
   const res = response(); await expired(request, res, () => assert.fail('Expired session passed'));
   assert.equal(res.code, 401);
-  const forged = middleware(() => ({ verifyIdToken: async () => { throw Error('Invalid signature'); } }));
+  const forged = middleware(async () => { throw Error('Invalid signature'); });
   const bad = response(); await forged(request, bad, () => assert.fail('Forged token passed'));
   assert.equal(bad.code, 401);
   const normal = { ...request };
-  await middleware(() => ({ verifyIdToken: async () => ({ uid: 'viewer' }) }))(normal, response(), () => {});
+  await middleware(async () => ({ uid: 'viewer' }))(normal, response(), () => {});
   assert.equal(normal.simulatorPreview, undefined);
 });

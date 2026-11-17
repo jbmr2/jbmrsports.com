@@ -35,7 +35,7 @@ test('clip API uses canonical archives without legacy reads and respects fresh v
   const service = load('shorts.cjs', {
     'firebase-admin/database': { getDatabaseWithUrl: () => rtdb },
     'firebase-admin/firestore': { getFirestore: () => { throw Error('Unexpected legacy archive read'); } },
-    'firebase-admin/auth': { getAuth: () => ({ getUser: async () => ({ phoneNumber: phone }) }) },
+    './verified-account.cjs': { phoneForRequest: async () => phone },
     './admin-visibility.cjs': { ...actualAdmin, archives: async () => { archiveLoads++; return [archive()]; } }
   });
   const routes = new Map();
