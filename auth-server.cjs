@@ -70,6 +70,8 @@ function bearerToken(req) {
 }
 
 async function verifyAppToken(token) {
+  const preview = require('./lib/simulator-preview.cjs').simulatorBearer(token);
+  if (preview) return preview;
   if (mysqlSessionsEnabled && mysqlAccounts.isSessionToken(token)) {
     return mysqlAccounts.verifySession(token);
   }

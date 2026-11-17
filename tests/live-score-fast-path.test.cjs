@@ -84,6 +84,18 @@ test('post-commit notification wakes the reader without waiting for the poll int
   runs = 202; hub.notifyCommitted();
   await until(() => messages.find(m => m.type === 'score_delta'), 'notification update');
 });
+test('restricted simulator receives the same visibility-filtered score deltas', async t => {
+  let runs = 42;
+  const { connect } = await setup(t, {
+    verifyToken: async () => ({ uid: 'simulator-preview', simulator_preview: true,
+      simulator_grant_version: require('../lib/simulator-preview-access.json').grantVersion }),
+    loadHeads: async () => heads(runs), loadSnapshot: async () => ({ scorers: data(runs) })
+  });
+  const { messages } = await connect();
+  runs = 46;
+  const updated = await until(() => messages.find(m => m.type === 'score_delta' && m.changes.some(c => c.table === 'innings' && c.upsert[0]?.state.runs === 46)), 'simulator score');
+  assert.ok(updated.version);
+});
 test('head reader keeps publication restrictions, strips private fields and caches only rules', async () => {
   let show = true, time = 0, reads = 0, policyReads = 0;
   const read = createReader({ now: () => time, read: async () => {

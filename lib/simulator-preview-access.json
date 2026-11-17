@@ -1,5 +1,6 @@
 {
   "tokenSha256": "286ca2cbba0741a71db7c200443b23a68767cb98d86994b2d3a814a0407668bc",
   "enabled": true,
-  "grantVersion": "continuous-v1"
+  "grantVersion": "continuous-v1",
+  "mysqlReadOnlyTokenSha256": "54fbc0b8e2636ae19ea97e7863265a60a5fa5c4a202e43f73b5da84d3018275c"
 }

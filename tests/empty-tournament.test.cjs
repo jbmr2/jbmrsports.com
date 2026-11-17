@@ -17,3 +17,10 @@ test('published empty tournament appears; hidden and unset tournaments remain pr
   assert.deepEqual(feed.tournaments[`${source}:11`].matches, {});
   assert.equal(feed.tournaments[`${source}:11`].logoUrl, 'https://example.org/cup.png');
 });
+test('match sequence numbers arrive as numbers even when MySQL returns strings', () => {
+  const feed = liveFeed({ scorers: { [source]: { tables: {
+    tournaments: { 1: { id: 1, name: 'Cup' } }, teams: {},
+    matches: { 1: { id: 1, tournament_id: 1, match_number: '1' } }
+  } } } });
+  assert.equal(feed.tournaments[`${source}:1`].matches[`${source}:1`].matchSeq, 1);
+});

@@ -1,0 +1,34 @@
+'use strict';
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const { createRequire } = require('node:module');
+test('Admin catalog loads MySQL tournaments without querying Firebase', async () => {
+  const filename = require.resolve('../lib/admin-visibility.cjs');
+  const local = createRequire(filename), module = { exports: {} }, routes = {};
+  const source = 'a'.repeat(32);
+  const payload = { installation_id: source, tables: { tournaments: [{ id: 9, name: 'New cup' }], matches: [{ id: 7, match_uid: 'existing' }], innings: [], teams: [], balls: [{ id: 1 }] } };
+  const archived = uid => ({ archive_manifest: { match_uid: uid }, tables: { matches: [{ id: 7, match_uid: uid }], balls: [{ id: 1 }] } });
+  const rules = { tournaments: { [`${source}:9`]: { show: true } }, matches: {} };
+  const fakeRequire = name => {
+    if (name === 'firebase-admin/database') return { getDatabaseWithUrl: () => { throw Error('Firebase queried'); } };
+    if (name === 'firebase-admin/firestore') return { getFirestore: () => { throw Error('Firebase queried'); } };
+    if (name === './manual-video-ads.cjs') return { install() {} };
+    if (name === './mysql-scoring.cjs') return { snapshot: async () => payload };
+    if (name === './mysql-visibility.cjs') return { read: async () => rules };
+    if (name === './mysql-archives.cjs') return { read: async () => [archived('existing'), archived('historical')] };
+    return local(name);
+  };
+  vm.runInNewContext(fs.readFileSync(filename,'utf8'), { module, require: fakeRequire, console, process, setTimeout, clearTimeout });
+  const app = { get: (path,...handlers) => { routes[path] = handlers.at(-1); }, put() {}, post() {} };
+  module.exports.install(app);
+  let result;
+  const res = { set() { return this; }, json(value) { result = value; return this; }, status() { throw Error('unexpected failure'); } };
+  await routes['/api/admin/catalog']({}, res);
+  assert.equal(result.scorer.tables.tournaments[`${source}:9`].name, 'New cup');
+  assert.equal(result.scorer.tables.balls, undefined);
+  assert.equal(result.archives.length, 1);
+  assert.equal(result.archives[0].archive_manifest.match_uid, 'historical');
+  assert.equal(result.visibility.tournaments[`${source}:9`].show, true);
+});

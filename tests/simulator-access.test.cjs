@@ -2,7 +2,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { middleware } = require('../lib/simulator-access.cjs');
-const { allowedSession, allowedRequest } = require('../lib/simulator-preview.cjs');
+const { allowedSession, allowedRequest, simulatorBearer } = require('../lib/simulator-preview.cjs');
 const preview = () => ({ uid: 'simulator-preview', simulator_preview: true,
   preview_expires_at: Math.floor(Date.now() / 1000) + 3600 });
 const response = () => ({ status(n) { this.code = n; return this; }, json(body) { this.body = body; } });
@@ -27,6 +27,24 @@ test('preview scope cannot change PINs, publish content, comment or download', (
   }
   assert.equal(allowedRequest({ method: 'GET', path: '/api/public/live-feed' }), true);
   assert.equal(allowedRequest({ method: 'GET', path: '/api/my-performance/analytics/batting' }), true);
+  assert.equal(allowedRequest({ method: 'GET', path: '/api/scoring-matches/' + 'a'.repeat(32) + ':1' }), true);
+  assert.equal(allowedRequest({ method: 'PUT', path: '/api/scoring-matches/' + 'a'.repeat(32) + ':1' }), false);
+});
+test('simulator bearer accepts only the configured secret and remains read-only', async () => {
+  const crypto = require('node:crypto'), key = 'e'.repeat(64);
+  const config = { enabled: true, grantVersion: 'test', mysqlReadOnlyTokenSha256: crypto.createHash('sha256').update(key).digest('hex') };
+  const claim = simulatorBearer('simv1_' + key, config);
+  assert.equal(claim.uid, 'simulator-preview');
+  assert.equal(simulatorBearer('simv1_' + 'f'.repeat(64), config), null);
+  assert.equal(simulatorBearer('simv1_' + key, { ...config, enabled: false }), null);
+  const guard = middleware(async () => ({ ...claim, simulator_grant_version: require('../lib/simulator-preview-access.json').grantVersion }));
+  const read = { headers: { authorization: 'Bearer simv1_' + key }, method: 'GET', path: '/api/public/live-feed' };
+  let passed = false; await guard(read, response(), () => { passed = true; });
+  assert.equal(passed, true);
+  for (const [method, path] of [['PUT', '/api/admin/visibility'], ['POST', '/api/auth/logout'], ['GET', '/api/admin/catalog']]) {
+    const res = response(); await guard({ headers: read.headers, method, path }, res, () => assert.fail('Preview access widened'));
+    assert.equal(res.code, 403);
+  }
 });
 test('verified preview token reaches reads and is blocked before write handlers', async () => {
   const guard = middleware(async () => preview());
