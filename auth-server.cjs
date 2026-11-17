@@ -109,6 +109,7 @@ require("./lib/admin-visibility.cjs").install(app);
 require("./lib/shorts.cjs").install(app, authenticated);
 require("./lib/public-archives.cjs").install(app, authenticated);
 require("./lib/ott-feed-api.cjs").install(app, authenticated);
+require("./lib/scoring-images.cjs").install(app);
 require("./lib/simulator-preview.cjs").install(app, authenticated);
 function accountPhone(user) {
   return String(user.phone_number || user.phone || "").replace(/^\+91/, "");
