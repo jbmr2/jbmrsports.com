@@ -3,6 +3,14 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { middleware } = require('../lib/simulator-access.cjs');
 const { allowedSession, allowedRequest, simulatorBearer } = require('../lib/simulator-preview.cjs');
+const { choosePlayer } = require('../lib/simulator-preview.cjs');
+test('simulator player discovery recovers a stale selection without weakening analytics', () => {
+  const players = new Map([['current', { id: 'current' }]]);
+  assert.equal(choosePlayer(players, 'stale', 'current', true).id, 'current');
+  assert.throws(() => choosePlayer(players, 'stale', 'current'), { code: 'INVALID_PLAYER' });
+  assert.equal(choosePlayer(new Map(), 'stale', undefined, true), undefined);
+  assert.equal(choosePlayer(players, 'current', undefined, true).id, 'current');
+});
 const preview = () => ({ uid: 'simulator-preview', simulator_preview: true,
   preview_expires_at: Math.floor(Date.now() / 1000) + 3600 });
 const response = () => ({ status(n) { this.code = n; return this; }, json(body) { this.body = body; } });
