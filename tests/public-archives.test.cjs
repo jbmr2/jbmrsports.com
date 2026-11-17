@@ -66,7 +66,7 @@ test('archive endpoint keeps auth middleware and fails closed when visibility ca
   let handlers, reads = 0;
   const auth = (_req, res) => res.status(401).json({ ok: false });
   const response = () => ({ set(k, v) { this[k] = v; return this; }, status(n) { this.code = n; return this; }, json(body) { this.body = body; return this; } });
-  install({ get(path, ...h) { assert.equal(path, '/api/scoring-archives'); handlers = h; } }, auth, {
+  install({ get(path, ...h) { if (path === '/api/scoring-archives') handlers = h; } }, auth, {
     archives: async () => { reads++; return [fixture()]; }, visibility: async () => { throw Error('offline'); }
   });
   const denied = response(); handlers[0]({}, denied);

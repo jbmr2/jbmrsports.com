@@ -1,0 +1,5 @@
+{"viewers":1,"updates":5,"deliveries":5,"p50ms":399.23,"p95ms":400.79,"p99ms":400.79,"errors":0,"lost":0,"rssMB":52,"cpuMs":46.046,"wallMs":2399}
+{"viewers":10,"updates":5,"deliveries":50,"p50ms":397.28,"p95ms":397.92,"p99ms":397.94,"errors":0,"lost":0,"rssMB":54,"cpuMs":55.688,"wallMs":2403}
+{"viewers":100,"updates":5,"deliveries":500,"p50ms":397.39,"p95ms":402.96,"p99ms":403.43,"errors":0,"lost":0,"rssMB":58,"cpuMs":99.311,"wallMs":2409}
+{"viewers":1000,"updates":5,"deliveries":5000,"p50ms":399.03,"p95ms":403.44,"p99ms":404.82,"errors":0,"lost":0,"rssMB":87,"cpuMs":356.711,"wallMs":2829}
+{"viewers":10000,"updates":5,"deliveries":50000,"p50ms":380.23,"p95ms":400.68,"p99ms":405.22,"errors":0,"lost":0,"rssMB":190,"cpuMs":1402.233,"wallMs":4070}
