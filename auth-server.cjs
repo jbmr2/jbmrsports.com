@@ -104,6 +104,7 @@ if (mysqlSessionsEnabled) {
     }
   });
 }
+require("./lib/mysql-profile.cjs").install(app, authenticated);
 require("./lib/admin-visibility.cjs").install(app);
 require("./lib/shorts.cjs").install(app, authenticated);
 require("./lib/public-archives.cjs").install(app, authenticated);
