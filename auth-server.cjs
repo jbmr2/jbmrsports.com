@@ -144,14 +144,17 @@ app.post("/savePin", authenticated, async (req, res) => {
     res.json({ ok: true });
   } catch { res.status(502).json({ ok: false, error: "PIN could not be saved" }); }
 });
-require("./lib/data-health.cjs").install(app, () => require("./lib/mysql-scoring.cjs").liveRevision());
+let liveSocket;
+require('./lib/scorer-notification.cjs').install(app, () => liveSocket?.notifyCommitted());
+require("./lib/data-health.cjs").install(app, () => require("./lib/mysql-scoring.cjs").liveRevision(), () => liveSocket?.liveHealth?.());
 app.use(express.static(path.join(__dirname, "dist")));
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 app.use((_req, res) => res.status(404).json({ ok: false, error: "Endpoint not found" }));
 const server = app.listen(Number(process.env.PORT || 3000), "0.0.0.0");
-require('./lib/live-socket.cjs').install(server, {
+liveSocket = require('./lib/live-socket.cjs').install(server, {
   verifyToken: verifyAppToken,
   verifyAdmin: token => require('./lib/admin-visibility.cjs').isAuthorizedDevice(token),
+  loadHeads: require('./lib/live-score-heads.cjs').createReader(),
   revision: () => require('./lib/mysql-scoring.cjs').liveRevision(),
   invalidate: () => { require('./lib/mysql-scoring.cjs').invalidate(); require('./lib/simulator-preview.cjs').invalidateLiveData(); }
 });

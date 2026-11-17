@@ -19,11 +19,25 @@ p { color: #bdc7d8; line-height: 1.5; }
 <dt>MySQL scoring connection</dt><dd id="status">Checking…</dd>
 <dt>Last server check</dt><dd id="checked">—</dd>
 <dt>Latest scoring change detected</dt><dd id="changed">Waiting for a change</dd>
+<dt>Live viewers connected</dt><dd id="viewers">—</dd>
+<dt>Database score read</dt><dd id="db-read">—</dd>
+<dt>Score detection to WebSocket send</dt><dd id="dispatch">—</dd>
+<dt>Detailed scorecard read (separate from score updates)</dt><dd id="details">—</dd>
+<dt>Latest update size</dt><dd id="bytes">—</dd>
+<dt>App decode / state apply</dt><dd id="client">Waiting for an updated app</dd>
+<dt>Send → app acknowledgement (includes network round trip)</dt><dd id="ack">—</dd>
+<dt>Last acknowledged update</dt><dd id="ack-time">—</dd>
+<dt>Score read / detail errors since restart</dt><dd id="errors">—</dd>
 </dl>
-<p>Times are shown in your local timezone. This page checks automatically every 2 seconds and shows when the server detected a change.</p>
+<p id="method">Checking the update method…</p>
+<p>Database commit-to-screen time is not yet measured: the scorer does not supply a verified commit timestamp. An app acknowledgement confirms published app state, not the next displayed frame. Values below are measured server stages, not a promised end-to-end delay.</p>
+<h2>Recent detected changes</h2>
+<ol id="events"><li>Waiting for a live score change</li></ol>
+<p>Times use your local timezone. This diagnostic page refreshes every 2 seconds; live app scores use WebSocket. Counters reset when the server restarts.</p>
 </main>
 <script>
 const showTime = value => value ? new Date(value).toLocaleString() : '—';
+const showMs = value => Number.isFinite(value) ? value.toFixed(1) + ' ms' : '—';
 async function refresh() {
   try {
     const response = await fetch('/api/datahealth', { signal: AbortSignal.timeout(8000) });
@@ -32,6 +46,28 @@ async function refresh() {
     document.querySelector('#status').textContent = data.reachable ? 'Connected' : 'Unavailable';
     document.querySelector('#checked').textContent = showTime(data.lastCheckAt);
     document.querySelector('#changed').textContent = data.latestChangeAt ? showTime(data.latestChangeAt) : 'Waiting for a change';
+    const live = data.realtime || {};
+    document.querySelector('#viewers').textContent = live.clients ?? '—';
+    document.querySelector('#db-read').textContent = showMs(live.lastDBReadMs);
+    document.querySelector('#dispatch').textContent = showMs(live.lastDetectedToSendMs);
+    document.querySelector('#details').textContent = showMs(live.lastDetailReadMs);
+    document.querySelector('#bytes').textContent = live.lastPayloadBytes == null ? '—' : live.lastPayloadBytes.toLocaleString() + ' bytes';
+    document.querySelector('#client').textContent = showMs(live.lastClientDecodeMs) + ' / ' + showMs(live.lastClientApplyMs);
+    document.querySelector('#ack').textContent = showMs(live.lastSendToAckMs);
+    document.querySelector('#ack-time').textContent = showTime(live.lastClientAckAt);
+    document.querySelector('#errors').textContent = (live.errors ?? 0) + ' / ' + (live.detailErrors ?? 0);
+    document.querySelector('#method').textContent = live.pollIntervalMs
+      ? 'MySQL score changes are checked every ' + live.pollIntervalMs + ' ms while viewers are connected. Scores are pushed independently of detailed history. A configured scorer notification can wake the reader immediately.'
+      : 'Realtime timing is not available on this server version.';
+    const events = document.querySelector('#events');
+    events.replaceChildren();
+    for (const event of (live.recent || []).slice().reverse()) {
+      const row = document.createElement('li');
+      row.textContent = showTime(event.detectedAt) + ' · SQL ' + showMs(event.dbReadMs)
+        + ' · dispatch ' + showMs(event.detectedToSendMs) + ' · ' + (event.payloadBytes ?? 0) + ' bytes';
+      events.appendChild(row);
+    }
+    if (!events.children.length) { const row = document.createElement('li'); row.textContent = 'Waiting for a live score change'; events.appendChild(row); }
   } catch {
     document.querySelector('#status').textContent = 'Health check unavailable';
   } finally {
