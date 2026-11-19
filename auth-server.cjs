@@ -150,14 +150,14 @@ app.post("/savePin", authenticated, async (req, res) => {
 let liveSocket;
 require('./lib/scorer-notification.cjs').install(app, () => liveSocket?.notifyCommitted());
 require("./lib/data-health.cjs").install(app, () => require("./lib/mysql-scoring.cjs").liveRevision(), () => liveSocket?.liveHealth?.());
-// Association files must return JSON directly, ahead of the web app fallback.
-for (const file of ["apple-app-site-association", "assetlinks.json"]) {
+// Serve these through Express so the hosting static layer does not infer their content type.
+const appLinkAssociations = {
+  "apple-app-site-association": require("./lib/app-links/apple-app-site-association.json"),
+  "assetlinks.json": require("./lib/app-links/assetlinks.json"),
+};
+for (const [file, association] of Object.entries(appLinkAssociations)) {
   app.get(`/.well-known/${file}`, (_req, res) => {
-    res.type("application/json").sendFile(file, {
-      root: path.join(__dirname, "public", ".well-known"),
-      dotfiles: "allow",
-      maxAge: "5m",
-    });
+    res.set("Cache-Control", "public, max-age=300").json(association);
   });
 }
 app.use(express.static(path.join(__dirname, "dist")));
