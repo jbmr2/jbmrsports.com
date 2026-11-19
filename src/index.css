@@ -513,23 +513,6 @@ img { max-width: 100%; display: block; }
   max-width: 1280px; margin: 0 auto; padding: 32px 80px 80px;
   display: grid; gap: 24px;
 }
-.web-open-match-app {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  margin-bottom: 12px;
-  padding: 0 16px;
-  border-radius: 8px;
-  background: #007ca6;
-  color: #fff;
-  font-weight: 650;
-}
-.web-open-match-app:hover,
-.web-open-match-app:focus-visible {
-  background: #006282;
-  color: #fff;
-}
-
 .web-match-page .panel {
   background: #12141c; border: 1px solid #222533; border-radius: 12px; padding: 20px;
 }
@@ -1636,7 +1619,7 @@ img { max-width: 100%; display: block; }
   display: flex; align-items: center; gap: 64px; overflow: hidden;
 }
 .web-download-copy { flex: 1; min-width: 0; display: grid; gap: 40px; }
-.web-download-copy h2 { margin: 0; font-size: 48px; font-weight: 900; line-height: 1.1; }
+.web-download-copy :is(h1, h2) { margin: 0; font-size: 48px; font-weight: 900; line-height: 1.1; }
 .web-download-copy p { margin: 0; font-size: 16px; line-height: 1.6; color: var(--muted); }
 .web-store-row { display: flex; gap: 16px; flex-wrap: wrap; }
 .web-store-btn {
@@ -1783,7 +1766,7 @@ img { max-width: 100%; display: block; }
   .legal-toc { position: static; }
   .legal-hero h1 { font-size: 32px; }
   .legal-card { padding: 24px; }
-  .web-download-copy h2 { font-size: 32px; }
+  .web-download-copy :is(h1, h2) { font-size: 32px; }
   .web-bbb-row { flex-wrap: wrap; }
   .web-download-icon { width: 120px; height: 120px; }
   .web-schedule, .web-match-page { padding: 24px 20px 64px; }

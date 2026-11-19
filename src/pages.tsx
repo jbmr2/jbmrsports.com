@@ -1,3 +1,4 @@
+import { useParams } from 'react-router-dom'
 
 const APP_STORE_URL = 'https://apps.apple.com/in/app/jbmr-sports/id6808138064'
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=in.jbmrsports.ott'
@@ -52,6 +53,30 @@ const FEATURES = [
     body: 'Save matches, keep watch history, and download ball clips to the phone.',
   },
 ]
+
+export function MatchSharePage() {
+  const { id } = useParams()
+  const canOpen = id && /^[a-zA-Z0-9_:-]{1,160}$/.test(id)
+
+  return (
+    <section className="web-fig-section web-download-section">
+      <div className="web-download-card">
+        <div className="web-download-copy">
+          <h1>{canOpen ? 'Open the match' : 'Invalid match link'}</h1>
+          <div className="web-hero-v2-actions">
+            {canOpen && (
+              <a className="web-btn-cta" href={`jbmrsports://match/${id}`}>
+                Open in JBMR Sports
+              </a>
+            )}
+            <a className="web-btn-ghost" href="/#download">Download the app</a>
+          </div>
+        </div>
+        <img className="web-download-icon" src="/app-icon.png" alt="" width={160} height={160} />
+      </div>
+    </section>
+  )
+}
 
 export function HomePage() {
   return (
