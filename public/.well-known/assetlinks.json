@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "in.jbmrsports.ott",
+      "sha256_cert_fingerprints": [
+        "AE:CA:97:3A:71:7E:CC:33:8A:47:E3:4D:45:77:75:BC:AE:34:4F:A8:2E:C3:E7:29:BD:47:13:18:10:D5:95:59"
+      ]
+    }
+  }
+]

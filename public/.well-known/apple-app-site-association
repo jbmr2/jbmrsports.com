@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "SJ536RSC6J.in.jbmrsports.ott",
+        "paths": ["/match/*", "/tournament/*", "/tab/*"]
+      }
+    ]
+  }
+}

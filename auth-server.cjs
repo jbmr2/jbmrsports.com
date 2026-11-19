@@ -150,6 +150,16 @@ app.post("/savePin", authenticated, async (req, res) => {
 let liveSocket;
 require('./lib/scorer-notification.cjs').install(app, () => liveSocket?.notifyCommitted());
 require("./lib/data-health.cjs").install(app, () => require("./lib/mysql-scoring.cjs").liveRevision(), () => liveSocket?.liveHealth?.());
+// Association files must return JSON directly, ahead of the web app fallback.
+for (const file of ["apple-app-site-association", "assetlinks.json"]) {
+  app.get(`/.well-known/${file}`, (_req, res) => {
+    res.type("application/json").sendFile(file, {
+      root: path.join(__dirname, "public", ".well-known"),
+      dotfiles: "allow",
+      maxAge: "5m",
+    });
+  });
+}
 app.use(express.static(path.join(__dirname, "dist")));
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
 app.use((_req, res) => res.status(404).json({ ok: false, error: "Endpoint not found" }));

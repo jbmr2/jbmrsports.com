@@ -622,8 +622,16 @@ export function MatchPage() {
     if (id && data) addWatchHistory(id)
   }, [id, data, addWatchHistory])
 
-  if (error) return <div className="web-error">{error}</div>
-  if (!data) return <div className="web-loading">Loading match…</div>
+  const openInApp = id && /^[a-zA-Z0-9_:-]{1,160}$/.test(id) ? (
+    <a className="web-open-match-app" href={`jbmrsports://match/${id}`}>Open in JBMR Sports</a>
+  ) : null
+
+  if (!data || error) return (
+    <div className="web-match-page">
+      {openInApp}
+      {error ? <div className="web-error">{error}</div> : <div className="web-loading">Loading match…</div>}
+    </div>
+  )
 
   const info = (data.matchInfo || {}) as Record<string, any>
   const balls = (data.ballByBall || []) as any[]
@@ -668,6 +676,7 @@ export function MatchPage() {
 
   return (
     <div className="web-match-page">
+      {openInApp}
       <section className="web-match-video-wrap">
         <div
           className="web-match-video-stage"

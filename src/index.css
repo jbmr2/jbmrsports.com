@@ -513,6 +513,23 @@ img { max-width: 100%; display: block; }
   max-width: 1280px; margin: 0 auto; padding: 32px 80px 80px;
   display: grid; gap: 24px;
 }
+.web-open-match-app {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-bottom: 12px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: #007ca6;
+  color: #fff;
+  font-weight: 650;
+}
+.web-open-match-app:hover,
+.web-open-match-app:focus-visible {
+  background: #006282;
+  color: #fff;
+}
+
 .web-match-page .panel {
   background: #12141c; border: 1px solid #222533; border-radius: 12px; padding: 20px;
 }
