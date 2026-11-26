@@ -43,6 +43,19 @@ async function setup(t, options = {}) {
   }
   return { hub, connect };
 }
+test('first score arrives while the initial detail load is blocked', async t => {
+  let finish;
+  const { connect } = await setup(t, {
+    loadSnapshot: () => new Promise(resolve => { finish = resolve; })
+  });
+  const { messages } = await connect();
+  const initial = messages.find(message => message.type === 'score_state');
+  assert.equal(initial.scorers[source].tables.innings[515].state.runs, 196);
+  await until(() => finish, 'pending details');
+  finish({ scorers: data() });
+  const update = await until(() => messages.find(message => message.type === 'score_delta'), 'details delta');
+  assert.ok(update.changes.some(change => change.table === 'balls' && change.upsert.length === 1));
+});
 test('score update and undo bypass a blocked history load; stale details cannot revert the score', async t => {
   let runs = 196, reads = 0, finish;
   const { hub, connect } = await setup(t, {

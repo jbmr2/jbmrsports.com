@@ -37,7 +37,8 @@ test('clip API uses canonical archives without legacy reads and respects fresh v
     'firebase-admin/firestore': { getFirestore: () => { throw Error('Unexpected legacy archive read'); } },
     './verified-account.cjs': { phoneForRequest: async () => phone },
     './mysql-visibility.cjs': { read: async () => { reads.push('app_visibility'); return visibility; } },
-    './admin-visibility.cjs': { ...actualAdmin, archives: async () => { archiveLoads++; return [archive()]; } }
+    './admin-visibility.cjs': actualAdmin,
+    './completed-history.cjs': { read: async () => { archiveLoads++; return { payloads: [archive()] }; } }
   });
   const routes = new Map();
   const app = { get: (p, ...handlers) => routes.set(p, handlers), post() {}, put() {}, delete() {} };

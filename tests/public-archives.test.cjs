@@ -22,6 +22,14 @@ function fixture() {
   };
 }
 const rules = { tournaments: { 9: { show: true } } };
+test('the live projection keeps distinct squad rows without numeric lineup IDs', () => {
+  const input = fixture();
+  const source = 'a'.repeat(32);
+  input.tables.match_lineups.push({ match_id: 1, team_id: 1, player_id: 1, position: 1 });
+  const { publicScorers } = require('../lib/ott-feed-api.cjs');
+  const { tables } = publicScorers({ [source]: input }, rules)[source];
+  assert.deepEqual(Object.values(tables.match_lineups).map(row => String(row.player_id)).sort(), ['1', '6']);
+});
 test('published score data preserves a revised ball limit and target', () => {
   const input = fixture();
   input.tables.innings[0].total_balls = 80;
