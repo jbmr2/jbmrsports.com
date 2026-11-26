@@ -9,7 +9,7 @@ function load(name, mocks) {
   const local = createRequire(filename), module = { exports: {} };
   vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
     module, exports: module.exports, require: key => Object.hasOwn(mocks, key) ? mocks[key] : local(key),
-    console: { info() {}, warn() {}, error() {} }, process: { env: {} }, Buffer, URL
+    console: { info() {}, warn() {}, error() {} }, process: { env: {} }, Buffer, URL, setTimeout, clearTimeout
   }, { filename });
   return module.exports;
 }
@@ -36,9 +36,11 @@ test('clip API uses canonical archives without legacy reads and respects fresh v
     'firebase-admin/database': { getDatabaseWithUrl: () => rtdb },
     'firebase-admin/firestore': { getFirestore: () => { throw Error('Unexpected legacy archive read'); } },
     './verified-account.cjs': { phoneForRequest: async () => phone },
-    './mysql-visibility.cjs': { read: async () => { reads.push('app_visibility'); return visibility; } },
     './admin-visibility.cjs': actualAdmin,
-    './completed-history.cjs': { read: async () => { archiveLoads++; return { payloads: [archive()] }; } }
+    './published-history.cjs': { read: async () => {
+      archiveLoads++; reads.push('app_visibility');
+      return { selected: visibility.tournaments[9].show ? [{ payload: archive(), rules: visibility }] : [] };
+    } }
   });
   const routes = new Map();
   const app = { get: (p, ...handlers) => routes.set(p, handlers), post() {}, put() {}, delete() {} };
@@ -55,7 +57,7 @@ test('clip API uses canonical archives without legacy reads and respects fresh v
   visibility.tournaments[9].show = false;
   const hidden = await request();
   assert.equal(hidden.packages.length, 0); assert.equal(hidden.diagnostic.status, 'no_visible_performance');
-  assert.equal(archiveLoads, 1); // Shared catalog can remain cached while visibility is refreshed.
+  assert.equal(archiveLoads, 2);
   assert.equal(reads.filter(x => x === 'app_visibility').length, 2);
   // Revoke while scoring remains cached: neither stale directory nor archive
   // ownership can keep exposing the prior player's packages.
@@ -63,7 +65,7 @@ test('clip API uses canonical archives without legacy reads and respects fresh v
   links[scorer] = { 11: { phone: '' } };
   const revoked = await request();
   assert.equal(revoked.linked, false); assert.equal(revoked.packages.length, 0);
-  assert.equal(archiveLoads, 1);
+  assert.equal(archiveLoads, 3);
   links[scorer][11].phone = '0000000002';
   const reassigned = await request();
   assert.equal(reassigned.linked, false); assert.equal(reassigned.packages.length, 0);
