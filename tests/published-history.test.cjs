@@ -43,3 +43,14 @@ test('same verified legacy match recovers ownership but current hides and revoca
   rules.matches[`${current}:21`].show = false;
   assert.equal((await get()).selected.length, 0);
 });
+
+test('the current scorer registry uses public_uid and cannot be replaced by archived contact data', async () => {
+  const { playerDirectory } = require('../lib/mysql-scoring.cjs');
+  const directory = await playerDirectory({ query: async () => [[{ id: 8, public_uid: 'stable-8', mobile: number }]] });
+  const archive = makePayload(current);
+  archive.tables.players = [{ id: 8, public_uid: 'stable-8', mobile: '0000000002' }];
+  const args = { archives: [archive], verifiedPhone: number, playerDirectory: { [current]: directory } };
+  assert.deepEqual([...resolveMappedPlayerKeys(args)], [scopedPlayerKey(current, 8)]);
+  assert.equal(resolveMappedPlayerKeys({ ...args, verifiedPhone: '0000000002' }).size, 0);
+  assert.equal(resolveMappedPlayerKeys({ ...args, playerDownloadLinks: { [current]: { 8: { phone: '' } } } }).size, 0);
+});
