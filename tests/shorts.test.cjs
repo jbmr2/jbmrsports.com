@@ -67,3 +67,15 @@ const keyedPerformance=performancePackages([{tables:keyedTables}],'9876543210',r
 assert.equal(keyedPerformance.find(p=>p.category==='innings')?.totalClips,1);
 assert.equal(keyedPerformance.find(p=>p.category==='fours')?.clips.length,1);
 console.log('Object-keyed Firebase tables preserve player, match, innings and ball IDs');
+
+const mysqlTables = { ...tables, balls: tables.balls.map(ball => {
+  if (ball.id !== 101) return ball;
+  return { ...ball, clip: undefined, clip_url: 'https://example.com/mysql-original.mp4' };
+}) };
+const mysqlPayload = { tables: mysqlTables };
+const mysqlInnings = performancePackages([mysqlPayload], '9876543210', rules).find(p => p.category === 'innings');
+assert.equal(mysqlInnings.clips.find(clip => clip.ballID === '101').videoURL, 'https://example.com/mysql-original.mp4');
+const mysqlClip = selectClip([mysqlPayload], 'rtdb-ball-7-101', rules);
+assert.equal(mysqlClip.ball.clip.url, 'https://example.com/mysql-original.mp4');
+assert.equal(ownsBall(mysqlClip.tables, mysqlClip.matchID, mysqlClip.ballID, '9876543210'), true);
+assert.equal(ownsBall(mysqlClip.tables, mysqlClip.matchID, mysqlClip.ballID, '9876543212'), false);
