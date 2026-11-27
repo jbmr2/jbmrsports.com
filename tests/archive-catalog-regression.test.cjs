@@ -28,14 +28,15 @@ test('clip API uses canonical archives without legacy reads and respects fresh v
   const visibility = { tournaments: { 9: { show: true } } }, reads = [];
   const links = {};
   let archiveLoads = 0;
-  const rtdb = { ref(key) { reads.push(key); return { get: async () => ({ val: () =>
-    key === 'app_visibility' ? visibility : key === 'player_download_links' ? links : key === 'player_directory'
-      ? { [scorer]: [{ player_id: 11, public_player_uid: 'synthetic-player', mobile: phone }] } : {} }) }; } };
   const actualAdmin = require('../lib/admin-visibility.cjs');
   const service = load('shorts.cjs', {
-    'firebase-admin/database': { getDatabaseWithUrl: () => rtdb },
+    'firebase-admin/database': { getDatabaseWithUrl: () => { throw Error('Unexpected RTDB read'); } },
     'firebase-admin/firestore': { getFirestore: () => { throw Error('Unexpected legacy archive read'); } },
     './verified-account.cjs': { phoneForRequest: async () => phone },
+    './mysql-player-mappings.cjs': { read: async () => ({
+      playerDirectory: { [scorer]: [{ player_id: 11, public_player_uid: 'synthetic-player', mobile: phone }] },
+      playerDownloadLinks: links
+    }) },
     './admin-visibility.cjs': actualAdmin,
     './published-history.cjs': { read: async () => {
       archiveLoads++; reads.push('app_visibility');
