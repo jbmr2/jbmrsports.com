@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { read } = require('../lib/published-history.cjs');
+const { read, readForPlayerAnalytics } = require('../lib/published-history.cjs');
 const { publishedArchives } = require('../lib/public-archives.cjs');
 const { resolveMappedPlayerKeys, scopedPlayerKey } = require('../lib/player-ownership.cjs');
 
@@ -25,6 +25,21 @@ test('currently published MySQL completion is served even with an empty migrated
   assert.equal(output[0].tables.balls[0].event.bat_runs, 4);
   assert.equal(result.diagnostics.currentCompleted, 2);
   assert.equal(result.diagnostics.completedReturned, 1);
+});
+
+test('private My Performance history includes completed MySQL matches hidden from public feeds', async () => {
+  let visibilityReads = 0;
+  const result = await readForPlayerAnalytics({
+    readArchive: async () => [makePayload(legacy)],
+    readScores: async () => ({ installation_id: current, tables: { matches: [match] } }),
+    readVisibility: async () => { visibilityReads++; throw Error('Player analytics must not depend on publication visibility'); },
+    resolve: async () => { throw Error('Player analytics must not resolve public publication rules'); },
+    readMatch: async () => makePayload(current)
+  });
+  assert.equal(visibilityReads, 0);
+  assert.equal(result.selected.length, 1);
+  assert.equal(result.selected[0].payload.installation_id, current);
+  assert.equal(result.selected[0].backups.length, 1);
 });
 
 test('same verified legacy match recovers ownership but current hides and revocations are honored', async () => {
