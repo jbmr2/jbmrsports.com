@@ -59,3 +59,15 @@ test('preview media is restricted to the configured HTTPS bucket path', () => {
     'https://media.example.com/clips/video.mp4?signature=value',
   ]) assert.equal(trustedVideoURL({ clip_url }, base), undefined);
 });
+
+test('published R2 playback may use a signature only on the scorer account', () => {
+  const { publishedSignedPlayback } = require('../lib/short-share.cjs');
+  const origin = 'https://fb24339071805761550ad4bbe368f890.r2.cloudflarestorage.com';
+  const path = '/clips/ball.mp4';
+  const query = '?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=' + 'a'.repeat(64);
+  const playback = publishedSignedPlayback({ clip_url: origin + path + query });
+  assert.equal(playback.url.href, origin + path + query);
+  assert.equal(playback.cacheKey, origin + path);
+  assert.equal(publishedSignedPlayback({ clip_url: origin + '.example.com' + path + query }), null);
+  assert.equal(publishedSignedPlayback({ clip_url: origin + path }), null);
+});
