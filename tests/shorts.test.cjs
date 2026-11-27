@@ -79,3 +79,8 @@ const mysqlClip = selectClip([mysqlPayload], 'rtdb-ball-7-101', rules);
 assert.equal(mysqlClip.ball.clip.url, 'https://example.com/mysql-original.mp4');
 assert.equal(ownsBall(mysqlClip.tables, mysqlClip.matchID, mysqlClip.ballID, '9876543210'), true);
 assert.equal(ownsBall(mysqlClip.tables, mysqlClip.matchID, mysqlClip.ballID, '9876543212'), false);
+const bowlingPackage = performancePackages([mysqlPayload], '9876543211', rules, { includeBowling: true })
+  .find(p => p.category === 'bowling');
+assert.equal(bowlingPackage.playerID, '2');
+assert.deepEqual(bowlingPackage.clips.map(clip => clip.ballID), ['101', '103']);
+assert.equal(performancePackages([mysqlPayload], '9876543211', rules).some(p => p.category === 'bowling'), false);
