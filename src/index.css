@@ -1725,7 +1725,7 @@ img { max-width: 100%; display: block; }
   .web-header-inner {
     padding: 12px 20px; flex-wrap: wrap; gap: 12px;
   }
-  .web-menu-toggle { display: inline-flex; }
+  .web-menu-toggle { display: inline-flex; order: 2; margin-left: auto; width: 44px; height: 44px; flex: 0 0 44px; }
   .web-sport-nav {
     display: none; width: 100%; order: 4;
     flex-direction: column; align-items: stretch; gap: 0;
@@ -1735,7 +1735,9 @@ img { max-width: 100%; display: block; }
   .web-sport-nav a {
     padding: 12px 4px; border-bottom: 1px solid var(--border);
   }
-  .web-download-btn { margin-left: auto; }
+  .web-download-btn { order: 3; width: 44px; height: 44px; padding: 0; }
+  .web-download-btn img { width: 20px; height: 20px; }
+  .web-download-label { display: none; }
   .web-hero-v2,
   .web-fig-section,
   .web-site-footer,
@@ -1780,7 +1782,7 @@ img { max-width: 100%; display: block; }
     flex-direction: column; align-items: stretch;
   }
   .web-btn-cta, .web-btn-ghost, .web-btn-cyan { width: 100%; }
-  .web-header-inner { min-height: 64px; }
+  .web-header-inner { min-height: 64px; padding-inline: 12px; gap: 8px; }
 }
 
 /* ——— App landing (no live data) ——— */

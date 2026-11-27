@@ -135,9 +135,9 @@ export function Layout() {
               )
             })}
           </nav>
-          <a className="web-download-btn" href="/#download">
+          <a className="web-download-btn" href="/#download" aria-label="Download JBMR Sports">
             <img src="/figma-v2/icon-download.svg" alt="" width={16} height={16} />
-            Download App
+            <span className="web-download-label">Download App</span>
           </a>
         </div>
       </header>
