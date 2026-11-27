@@ -98,7 +98,7 @@ export function HomePage() {
               App Store
             </a>
             <a className="sports-home-button" href={PLAY_STORE_URL} target="_blank" rel="noopener noreferrer">
-              <img src="/figma-v2/icon-play-store.svg" alt="" width={20} height={20} />
+              <span aria-hidden="true">▶</span>
               Google Play
             </a>
           </div>
